@@ -1352,6 +1352,15 @@ install(TARGETS ${Launcher_Name}
     FRAMEWORK DESTINATION ${FRAMEWORK_DEST_DIR} COMPONENT Runtime
 )
 
+if(UNIX AND APPLE)
+    install(TARGETS dlopen_hook
+        LIBRARY DESTINATION "${FRAMEWORK_DEST_DIR}" COMPONENT Runtime
+    )
+    install(TARGETS QuarantineRemovalService
+        BUNDLE DESTINATION "${XPC_DEST_DIR}" COMPONENT Runtime
+    )
+endif()
+
 if(Launcher_BUILD_UPDATER)
     # Updater
     add_library(prism_updater_logic STATIC ${PRISMUPDATER_SOURCES} ${TASKS_SOURCES} ${PRISMUPDATER_UI})

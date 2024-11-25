@@ -381,6 +381,7 @@ if(UNIX AND APPLE)
     set(FRAMEWORK_DEST_DIR "${Launcher_Name}.app/Contents/Frameworks")
     set(RESOURCES_DEST_DIR "${Launcher_Name}.app/Contents/Resources")
     set(JARS_DEST_DIR "${Launcher_Name}.app/Contents/MacOS/jars")
+    set(XPC_DEST_DIR "${Launcher_Name}.app/Contents/XPCServices")
 
     # Apps to bundle
     set(APPS "\${CMAKE_INSTALL_PREFIX}/${Launcher_Name}.app")
@@ -550,6 +551,12 @@ else()
     message(STATUS "Using system ghc_filesystem")
 endif()
 add_subdirectory(libraries/qdcss) # css parser
+
+########################### XPC Service (macOS only) ##########################
+if(UNIX AND APPLE)
+    add_subdirectory(xpc)
+    add_subdirectory(libraries/dlopen-hook)
+endif()
 
 ############################### Built Artifacts ###############################
 
