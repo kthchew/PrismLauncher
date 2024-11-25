@@ -90,6 +90,8 @@
 
 #include "tools/BaseProfiler.h"
 
+#include "xpcbridge/XPCBridge.h"
+
 #include <QActionGroup>
 #include <QMainWindow>
 #include <QScreen>
@@ -554,6 +556,14 @@ QMap<QString, QString> MinecraftInstance::getVariables()
     out.insert("INST_JAVA", settings()->get("JavaPath").toString());
     out.insert("INST_JAVA_ARGS", javaArguments().join(' '));
     out.insert("NO_COLOR", "1");
+#if defined(Q_OS_MAC)
+    QDir dlopenDir = QDir(Application::applicationDirPath());
+    dlopenDir.cdUp();
+    dlopenDir.cd("Frameworks");
+    QString dlopenPath = dlopenDir.filePath("libdlopen_hook.dylib");
+    out.insert("DYLD_INSERT_LIBRARIES", dlopenPath);
+    out.insert("XPC_MIDDLEMAN_SOCKET", APPLICATION->m_xpcBridge->getSocketPath());
+#endif
     return out;
 }
 

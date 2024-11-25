@@ -1152,6 +1152,17 @@ set(LAUNCHER_SOURCES
 )
 endif()
 
+if (APPLE)
+    set(LAUNCHER_SOURCES
+        ${LAUNCHER_SOURCES}
+
+        xpcbridge/XPCBridge.h
+        xpcbridge/XPCBridge.cpp
+        xpcbridge/XPCManager.h
+        xpcbridge/XPCManager.mm
+    )
+endif()
+
 if(WIN32)
     set(LAUNCHER_SOURCES
         WindowsConsole.cpp

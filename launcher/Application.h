@@ -50,6 +50,7 @@
 
 #include "minecraft/launch/MinecraftTarget.h"
 
+class XPCBridge;
 class LaunchController;
 class LocalPeer;
 class InstanceWindow;
@@ -308,6 +309,9 @@ class Application : public QApplication {
     QList<QUrl> m_urlsToImport;
     QString m_instanceIdToShowWindowOf;
     std::unique_ptr<QFile> logFile;
+#ifdef Q_OS_MACOS
+    XPCBridge* m_xpcBridge = nullptr;
+#endif
 
    public:
     void addQSavePath(QString);

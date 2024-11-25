@@ -147,6 +147,7 @@
 #endif
 
 #if defined(Q_OS_MAC)
+#include "xpcbridge/XPCBridge.h"
 #if defined(SPARKLE_ENABLED)
 #include "updater/MacSparkleUpdater.h"
 #endif
@@ -1074,6 +1075,10 @@ Application::Application(int& argc, char** argv) : QApplication(argc, argv)
     if (createSetupWizard()) {
         return;
     }
+
+#ifdef Q_OS_MACOS
+    m_xpcBridge = new XPCBridge();
+#endif
 
     m_themeManager->applyCurrentlySelectedTheme(true);
     performMainStartupAction();
