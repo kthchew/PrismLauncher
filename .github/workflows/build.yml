@@ -384,7 +384,7 @@ jobs:
             APPLE_CODESIGN_ID='-'
           fi
 
-          sudo codesign --sign "$APPLE_CODESIGN_ID" --deep --force --entitlements "../program_info/App.entitlements" --options runtime "PrismLauncher.app/Contents/MacOS/prismlauncher"
+          ../program_info/macos_signature.sh "$APPLE_CODESIGN_ID"
           mv "PrismLauncher.app" "Prism Launcher.app"
 
       - name: Notarize (macOS)
