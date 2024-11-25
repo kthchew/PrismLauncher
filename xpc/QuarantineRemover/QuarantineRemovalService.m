@@ -20,7 +20,8 @@
 #import <AppKit/AppKit.h>
 #import <UniformTypeIdentifiers/UniformTypeIdentifiers.h>
 
-bool shouldRemoveQuarantine(NSURL* url) {
+bool shouldRemoveQuarantine(NSURL* url)
+{
     if (![url.path hasPrefix:NSHomeDirectory()]) {
         return false;
     }
@@ -31,25 +32,28 @@ bool shouldRemoveQuarantine(NSURL* url) {
         return false;
     }*/
 
-    // If the "Open With" attribute on a file has been changed, that could potentially be dangerous. Only unquarantine a file if this attribute is not set to a non-default value.
-    // Note that sandboxed processes can't choose to open a file in an app other than the default app for that file.
+    // If the "Open With" attribute on a file has been changed, that could potentially be dangerous. Only unquarantine a file if this
+    // attribute is not set to a non-default value. Note that sandboxed processes can't choose to open a file in an app other than the
+    // default app for that file.
     if (@available(macOS 12.0, *)) {
-        NSString *typeIdentifier;
+        NSString* typeIdentifier;
         [url getResourceValue:&typeIdentifier forKey:NSURLTypeIdentifierKey error:nil];
         if (typeIdentifier) {
-            UTType *fileType = [UTType typeWithIdentifier:typeIdentifier];
-            if ([[NSWorkspace sharedWorkspace] URLForApplicationToOpenURL:url] != [[NSWorkspace sharedWorkspace] URLForApplicationToOpenContentType:fileType]) {
+            UTType* fileType = [UTType typeWithIdentifier:typeIdentifier];
+            if ([[NSWorkspace sharedWorkspace] URLForApplicationToOpenURL:url] !=
+                [[NSWorkspace sharedWorkspace] URLForApplicationToOpenContentType:fileType]) {
                 return false;
             }
         }
     }
 
-    NSSet<NSString *> *allowedExtensions = [[NSSet alloc] initWithArray:@[@"", @"dylib", @"tmp", @"jnilib"]];
+    NSSet<NSString*>* allowedExtensions = [[NSSet alloc] initWithArray:@[ @"", @"dylib", @"tmp", @"jnilib" ]];
     return [allowedExtensions containsObject:url.pathExtension];
 }
 
 @implementation QuarantineRemovalService
-- (void)removeQuarantineFromFileAt:(NSString *)path withReply:(void (^)(BOOL *, NSString *))reply {
+- (void)removeQuarantineFromFileAt:(NSString*)path withReply:(void (^)(BOOL*, NSString*))reply
+{
     BOOL result = false;
     NSURL* url = [NSURL fileURLWithPath:path];
     if (!shouldRemoveQuarantine(url)) {
@@ -57,9 +61,11 @@ bool shouldRemoveQuarantine(NSURL* url) {
         return;
     }
 
-    // Copy the file to a temporary location outside the sandbox, so the sandboxed code can't interfere with the below operations (for example, trying to set the executable bit).
-    NSError *err = nil;
-    NSURL *unquarantinedCopyURL = [[[NSFileManager defaultManager] temporaryDirectory] URLByAppendingPathComponent:[[NSUUID UUID] UUIDString]];
+    // Copy the file to a temporary location outside the sandbox, so the sandboxed code can't interfere with the below operations (for
+    // example, trying to set the executable bit).
+    NSError* err = nil;
+    NSURL* unquarantinedCopyURL =
+        [[[NSFileManager defaultManager] temporaryDirectory] URLByAppendingPathComponent:[[NSUUID UUID] UUIDString]];
     [[NSFileManager defaultManager] copyItemAtURL:url toURL:unquarantinedCopyURL error:&err];
     if (err) {
         NSLog(@"An error occurred while copying the file to a temporary location: %@", [err localizedDescription]);
@@ -67,14 +73,15 @@ bool shouldRemoveQuarantine(NSURL* url) {
         return;
     }
     // Clear the executable bit on the file to prevent a malicious item from being allowed to execute in Terminal.
-    NSDictionary<NSFileAttributeKey, id> *attrs = [[NSFileManager defaultManager] attributesOfItemAtPath:unquarantinedCopyURL.path error:&err];
+    NSDictionary<NSFileAttributeKey, id>* attrs = [[NSFileManager defaultManager] attributesOfItemAtPath:unquarantinedCopyURL.path
+                                                                                                   error:&err];
     if (err) {
         NSLog(@"Couldn't read the file permissions: %@", [err localizedDescription]);
         reply(&result, path);
         return;
     }
-    NSNumber *newPosixPerms = [NSNumber numberWithShort:[[attrs valueForKey:NSFilePosixPermissions] shortValue] & 0666];
-    NSDictionary<NSFileAttributeKey, id> *newAttr = @{NSFilePosixPermissions: newPosixPerms};
+    NSNumber* newPosixPerms = [NSNumber numberWithShort:[[attrs valueForKey:NSFilePosixPermissions] shortValue] & 0666];
+    NSDictionary<NSFileAttributeKey, id>* newAttr = @{ NSFilePosixPermissions : newPosixPerms };
     [[NSFileManager defaultManager] setAttributes:newAttr ofItemAtPath:unquarantinedCopyURL.path error:&err];
     if (err) {
         NSLog(@"Couldn't remove executable bit: %@", [err localizedDescription]);
@@ -92,7 +99,12 @@ bool shouldRemoveQuarantine(NSURL* url) {
 
     // Put the file back where it originally was.
     // FIXME: can error if source and destination are on different volumes - need to handle
-    [[NSFileManager defaultManager] replaceItemAtURL:url withItemAtURL:unquarantinedCopyURL backupItemName:nil options:NSFileManagerItemReplacementUsingNewMetadataOnly resultingItemURL:nil error:&err];
+    [[NSFileManager defaultManager] replaceItemAtURL:url
+                                       withItemAtURL:unquarantinedCopyURL
+                                      backupItemName:nil
+                                             options:NSFileManagerItemReplacementUsingNewMetadataOnly
+                                    resultingItemURL:nil
+                                               error:&err];
     if (err) {
         NSLog(@"Couldn't copy back: %@", [err localizedDescription]);
         reply(&result, path);

@@ -16,34 +16,37 @@
  *  along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include <xpc/xpc.h>
 #include <Foundation/Foundation.h>
+#include <xpc/xpc.h>
 
-#include "XPCManager.h"
 #include "../../xpc/QuarantineRemover/QuarantineRemovalServiceProtocol.h"
+#include "XPCManager.h"
 
-std::pair<bool, std::string> askToRemoveQuarantine(char* path) {
+std::pair<bool, std::string> askToRemoveQuarantine(char* path)
+{
     __block std::pair<bool, std::string> result;
     dispatch_group_t syncGroup = dispatch_group_create();
-	dispatch_group_enter(syncGroup);
+    dispatch_group_enter(syncGroup);
 
-	NSXPCConnection* _connectionToService = [[NSXPCConnection alloc] initWithServiceName:@"org.prismlauncher.PrismLauncher.QuarantineRemovalService"];
+    NSXPCConnection* _connectionToService =
+        [[NSXPCConnection alloc] initWithServiceName:@"org.prismlauncher.PrismLauncher.QuarantineRemovalService"];
     _connectionToService.remoteObjectInterface = [NSXPCInterface interfaceWithProtocol:@protocol(QuarantineRemovalServiceProtocol)];
     [_connectionToService resume];
 
-	NSString* pathStr = [NSString stringWithUTF8String:path];
-	dispatch_time_t waitTime = dispatch_time(DISPATCH_TIME_NOW, (int64_t)(NSEC_PER_SEC * 5));
+    NSString* pathStr = [NSString stringWithUTF8String:path];
+    dispatch_time_t waitTime = dispatch_time(DISPATCH_TIME_NOW, (int64_t)(NSEC_PER_SEC * 5));
 
     NSLog(@"Asking to remove quarantine from file at path: %@", pathStr);
-	[[_connectionToService remoteObjectProxyWithErrorHandler:^(NSError * _Nonnull error) {
-        NSLog(@"Error occurred while contacting XPC service: %@", error);
-        result = std::make_pair(false, std::string(path));
-        dispatch_group_leave(syncGroup);
-    }] removeQuarantineFromFileAt:pathStr withReply:^(BOOL *ok, NSString *url) {
-        NSLog(@"Received response from XPC service: %d, %@", *ok, url);
-        result = std::make_pair(*ok, std::string([url UTF8String]));
-        dispatch_group_leave(syncGroup);
-    }];
-	dispatch_group_wait(syncGroup, waitTime);
+    [[_connectionToService remoteObjectProxyWithErrorHandler:^(NSError* _Nonnull error) {
+      NSLog(@"Error occurred while contacting XPC service: %@", error);
+      result = std::make_pair(false, std::string(path));
+      dispatch_group_leave(syncGroup);
+    }] removeQuarantineFromFileAt:pathStr
+                        withReply:^(BOOL* ok, NSString* url) {
+                          NSLog(@"Received response from XPC service: %d, %@", *ok, url);
+                          result = std::make_pair(*ok, std::string([url UTF8String]));
+                          dispatch_group_leave(syncGroup);
+                        }];
+    dispatch_group_wait(syncGroup, waitTime);
     return result;
 }
