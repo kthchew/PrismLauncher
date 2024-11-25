@@ -380,11 +380,11 @@ endif()
 
 if(UNIX AND APPLE)
     set(BINARY_DEST_DIR "${Launcher_Name}.app/Contents/MacOS")
-    set(LIBRARY_DEST_DIR "${Launcher_Name}.app/Contents/MacOS")
-    set(PLUGIN_DEST_DIR "${Launcher_Name}.app/Contents/MacOS")
+    set(LIBRARY_DEST_DIR "${Launcher_Name}.app/Contents/MacOS/Frameworks")
+    set(PLUGIN_DEST_DIR "${Launcher_Name}.app/Contents/PlugIns")
     set(FRAMEWORK_DEST_DIR "${Launcher_Name}.app/Contents/Frameworks")
     set(RESOURCES_DEST_DIR "${Launcher_Name}.app/Contents/Resources")
-    set(JARS_DEST_DIR "${Launcher_Name}.app/Contents/MacOS/jars")
+    set(JARS_DEST_DIR "${Launcher_Name}.app/Contents/Resources/jars")
 
     # Apps to bundle
     set(APPS "\${CMAKE_INSTALL_PREFIX}/${Launcher_Name}.app")
