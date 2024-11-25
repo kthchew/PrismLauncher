@@ -37,16 +37,29 @@ std::pair<bool, std::string> askToRemoveQuarantine(char* path)
     dispatch_time_t waitTime = dispatch_time(DISPATCH_TIME_NOW, (int64_t)(NSEC_PER_SEC * 5));
 
     NSLog(@"Asking to remove quarantine from file at path: %@", pathStr);
-    [[_connectionToService remoteObjectProxyWithErrorHandler:^(NSError* _Nonnull error) {
+    id conn = [_connectionToService remoteObjectProxyWithErrorHandler:^(NSError* _Nonnull error) {
       NSLog(@"Error occurred while contacting XPC service: %@", error);
       result = std::make_pair(false, std::string(path));
       dispatch_group_leave(syncGroup);
-    }] removeQuarantineFromFileAt:pathStr
-                        withReply:^(BOOL* ok, NSString* url) {
-                          NSLog(@"Received response from XPC service: %d, %@", *ok, url);
-                          result = std::make_pair(*ok, std::string([url UTF8String]));
-                          dispatch_group_leave(syncGroup);
-                        }];
+    }];
+    [conn removeQuarantineFromFileAt:pathStr
+                           withReply:^(BOOL* ok, NSString* url) {
+                             NSLog(@"Received response from XPC service: %d, %@", *ok, url);
+                             result = std::make_pair(*ok, std::string([url UTF8String]));
+                             dispatch_group_leave(syncGroup);
+                           }];
+
+    // LWJGL 2 may load openal.dylib, and for... reasons... that load isn't intercepted, so just hardcode that case here preemptively
+    if ([pathStr hasSuffix:@"liblwjgl.dylib"]) {
+        NSLog(@"Asking to remove quarantine from file at path (LWJGL 2 workaround): %@", pathStr);
+        dispatch_group_enter(syncGroup);
+        [conn removeQuarantineFromFileAt:[pathStr stringByReplacingOccurrencesOfString:@"liblwjgl.dylib" withString:@"openal.dylib"]
+                               withReply:^(BOOL* ok, NSString* url) {
+                                 NSLog(@"Received response from XPC service: %d, %@", *ok, url);
+                                 dispatch_group_leave(syncGroup);
+                               }];
+    }
+
     dispatch_group_wait(syncGroup, waitTime);
     return result;
 }
