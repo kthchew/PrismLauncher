@@ -38,6 +38,7 @@ stdenv.mkDerivation {
       "libraries"
       "program_info"
       "tests"
+      "xpc"
       ../COPYING.md
       ../CMakeLists.txt
     ];
