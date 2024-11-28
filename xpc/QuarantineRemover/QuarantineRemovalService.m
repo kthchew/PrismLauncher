@@ -96,6 +96,23 @@ bool shouldRemoveQuarantine(NSURL* url)
         reply(&result, path);
         return;
     }
+    // Apple says to do the above, but it instead puts some kind of "quarantine removed" flag on some systems rather than just removing it.
+    // There's a macOS bug (?) that causes Gatekeeper to still deny a dynamic library with such an attribute from loading. (FB15970881)
+    // Using xattr to remove the quarantine flag works around this issue, though this isn't ideal.
+    NSDictionary<NSURLResourceKey, id>* quarantineAfter = [unquarantinedCopyURL resourceValuesForKeys:@[ NSURLQuarantinePropertiesKey ]
+                                                                                                error:nil];
+    if (quarantineAfter[NSURLQuarantinePropertiesKey] != nil) {
+        NSTask* task = [[NSTask alloc] init];
+        [task setLaunchPath:@"/usr/bin/xattr"];
+        [task setArguments:@[ @"-d", @"com.apple.quarantine", unquarantinedCopyURL.path ]];
+        [task launch];
+        [task waitUntilExit];
+        if ([task terminationStatus] != 0) {
+            NSLog(@"Couldn't remove quarantine: %@", [err localizedDescription]);
+            reply(&result, path);
+            return;
+        }
+    }
 
     // Put the file back where it originally was.
     // FIXME: can error if source and destination are on different volumes - need to handle
