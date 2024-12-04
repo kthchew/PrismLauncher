@@ -1082,13 +1082,13 @@ Application::Application(int& argc, char** argv) : QApplication(argc, argv)
         }
     }
 
-    if (createSetupWizard()) {
-        return;
-    }
-
 #ifdef Q_OS_MACOS
     m_xpcBridge = new XPCBridge();
 #endif
+
+    if (createSetupWizard()) {
+        return;
+    }
 
     m_themeManager->applyCurrentlySelectedTheme(true);
     performMainStartupAction();
