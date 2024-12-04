@@ -1152,6 +1152,15 @@ set(LAUNCHER_SOURCES
 )
 endif()
 
+if (APPLE)
+    set(LAUNCHER_SOURCES
+        ${LAUNCHER_SOURCES}
+
+            macsandbox/SecurityBookmarkFileAccess.h
+            macsandbox/SecurityBookmarkFileAccess.mm
+    )
+endif()
+
 if(WIN32)
     set(LAUNCHER_SOURCES
         WindowsConsole.cpp
