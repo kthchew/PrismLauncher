@@ -170,6 +170,10 @@ bool SettingsObject::setPathWithBookmark(const QString& id, const QString& path)
         qCritical() << QString("Error changing setting %1. Setting doesn't exist.").arg(id);
         return false;
     }
+    if (setting->get() == path) {
+        // no change, no need to do anything
+        return true;
+    }
 
     QDir dir(path);
     if (!dir.exists()) {
