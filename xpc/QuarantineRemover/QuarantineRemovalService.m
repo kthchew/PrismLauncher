@@ -64,12 +64,22 @@ bool shouldRemoveQuarantine(NSURL* url)
     // Copy the file to a temporary location outside the sandbox, so the sandboxed code can't interfere with the below operations (for
     // example, trying to set the executable bit).
     NSError* err = nil;
-    NSURL* unquarantinedCopyURL =
-        [[[NSFileManager defaultManager] temporaryDirectory] URLByAppendingPathComponent:[[NSUUID UUID] UUIDString]];
+    NSURL* temporaryDirectory = [[NSFileManager defaultManager] URLForDirectory:NSItemReplacementDirectory
+                                                                       inDomain:NSUserDomainMask
+                                                              appropriateForURL:url
+                                                                         create:YES
+                                                                          error:&err];
+    if (err) {
+        NSLog(@"An error occurred while creating a temporary directory: %@", [err localizedDescription]);
+        reply(&result, path);
+        return;
+    }
+    NSURL* unquarantinedCopyURL = [temporaryDirectory URLByAppendingPathComponent:[url lastPathComponent]];
     [[NSFileManager defaultManager] copyItemAtURL:url toURL:unquarantinedCopyURL error:&err];
     if (err) {
         NSLog(@"An error occurred while copying the file to a temporary location: %@", [err localizedDescription]);
         reply(&result, path);
+        [[NSFileManager defaultManager] removeItemAtURL:temporaryDirectory error:nil];
         return;
     }
     // Clear the executable bit on the file to prevent a malicious item from being allowed to execute in Terminal.
@@ -78,6 +88,7 @@ bool shouldRemoveQuarantine(NSURL* url)
     if (err) {
         NSLog(@"Couldn't read the file permissions: %@", [err localizedDescription]);
         reply(&result, path);
+        [[NSFileManager defaultManager] removeItemAtURL:temporaryDirectory error:nil];
         return;
     }
     NSNumber* newPosixPerms = [NSNumber numberWithShort:[[attrs valueForKey:NSFilePosixPermissions] shortValue] & 0666];
@@ -86,6 +97,7 @@ bool shouldRemoveQuarantine(NSURL* url)
     if (err) {
         NSLog(@"Couldn't remove executable bit: %@", [err localizedDescription]);
         reply(&result, path);
+        [[NSFileManager defaultManager] removeItemAtURL:temporaryDirectory error:nil];
         return;
     }
 
@@ -94,6 +106,7 @@ bool shouldRemoveQuarantine(NSURL* url)
     if (err) {
         NSLog(@"Couldn't remove quarantine: %@", [err localizedDescription]);
         reply(&result, path);
+        [[NSFileManager defaultManager] removeItemAtURL:temporaryDirectory error:nil];
         return;
     }
     // Apple says to do the above, but it instead puts some kind of "quarantine removed" flag on some systems rather than just removing it.
@@ -110,12 +123,12 @@ bool shouldRemoveQuarantine(NSURL* url)
         if ([task terminationStatus] != 0) {
             NSLog(@"Couldn't remove quarantine: %@", [err localizedDescription]);
             reply(&result, path);
+            [[NSFileManager defaultManager] removeItemAtURL:temporaryDirectory error:nil];
             return;
         }
     }
 
     // Put the file back where it originally was.
-    // FIXME: can error if source and destination are on different volumes - need to handle
     [[NSFileManager defaultManager] replaceItemAtURL:url
                                        withItemAtURL:unquarantinedCopyURL
                                       backupItemName:nil
@@ -125,10 +138,12 @@ bool shouldRemoveQuarantine(NSURL* url)
     if (err) {
         NSLog(@"Couldn't copy back: %@", [err localizedDescription]);
         reply(&result, path);
+        [[NSFileManager defaultManager] removeItemAtURL:temporaryDirectory error:nil];
         return;
     } else {
         result = true;
         reply(&result, path);
+        [[NSFileManager defaultManager] removeItemAtURL:temporaryDirectory error:nil];
     }
 }
 
