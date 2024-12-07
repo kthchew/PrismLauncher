@@ -20,11 +20,8 @@
 #import <AppKit/AppKit.h>
 #import <UniformTypeIdentifiers/UniformTypeIdentifiers.h>
 
-bool shouldRemoveQuarantine(NSURL* url)
+BOOL shouldRemoveQuarantine(NSURL* url)
 {
-    if (![url.path hasPrefix:NSHomeDirectory()]) {
-        return false;
-    }
     // Avoid unquarantining directories (such as bundles, which can include applications).
     NSNumber *isRegularFile;
     if (!([url getResourceValue:&isRegularFile forKey:NSURLIsRegularFileKey error:nil] && [isRegularFile boolValue])) {
@@ -33,7 +30,7 @@ bool shouldRemoveQuarantine(NSURL* url)
 
     // If the "Open With" attribute on a file has been changed, that could potentially be dangerous. Only unquarantine a file if this
     // attribute is not set to a non-default value. Note that sandboxed processes can't choose to open a file in an app other than the
-    // default app for that file.
+    // default app for that file or an app that declares it can open that file type.
     if (@available(macOS 12.0, *)) {
         NSString* typeIdentifier;
         [url getResourceValue:&typeIdentifier forKey:NSURLTypeIdentifierKey error:nil];
@@ -41,7 +38,7 @@ bool shouldRemoveQuarantine(NSURL* url)
             UTType* fileType = [UTType typeWithIdentifier:typeIdentifier];
             if ([[NSWorkspace sharedWorkspace] URLForApplicationToOpenURL:url] !=
                 [[NSWorkspace sharedWorkspace] URLForApplicationToOpenContentType:fileType]) {
-                return false;
+                return NO;
             }
         }
     }
@@ -53,11 +50,11 @@ bool shouldRemoveQuarantine(NSURL* url)
 @implementation QuarantineRemovalService
 - (void)removeQuarantineFromFileAt:(NSString*)path withReply:(void (^)(BOOL*, NSString*))reply
 {
-    BOOL result = false;
+    BOOL result = NO;
     NSURL* url = [NSURL fileURLWithPath:path];
-    if (!shouldRemoveQuarantine(url)) {
+
+    if (![url.path hasPrefix:NSHomeDirectory()]) {
         reply(&result, path);
-        return;
     }
 
     // Copy the file to a temporary location outside the sandbox, so the sandboxed code can't interfere with the below operations (for
@@ -81,6 +78,13 @@ bool shouldRemoveQuarantine(NSURL* url)
         [[NSFileManager defaultManager] removeItemAtURL:temporaryDirectory error:nil];
         return;
     }
+
+    if (!shouldRemoveQuarantine(unquarantinedCopyURL)) {
+        reply(&result, path);
+        [[NSFileManager defaultManager] removeItemAtURL:temporaryDirectory error:nil];
+        return;
+    }
+
     // Clear the executable bit on the file to prevent a malicious item from being allowed to execute in Terminal.
     NSDictionary<NSFileAttributeKey, id>* attrs = [[NSFileManager defaultManager] attributesOfItemAtPath:unquarantinedCopyURL.path
                                                                                                    error:&err];
@@ -140,7 +144,7 @@ bool shouldRemoveQuarantine(NSURL* url)
         [[NSFileManager defaultManager] removeItemAtURL:temporaryDirectory error:nil];
         return;
     } else {
-        result = true;
+        result = YES;
         reply(&result, path);
         [[NSFileManager defaultManager] removeItemAtURL:temporaryDirectory error:nil];
     }
