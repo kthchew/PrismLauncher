@@ -26,11 +26,10 @@ bool shouldRemoveQuarantine(NSURL* url)
         return false;
     }
     // Avoid unquarantining directories (such as bundles, which can include applications).
-    // TODO: this is denying things that need to be unquarantined
-    /*NSNumber *isRegularFile;
+    NSNumber *isRegularFile;
     if (!([url getResourceValue:&isRegularFile forKey:NSURLIsRegularFileKey error:nil] && [isRegularFile boolValue])) {
-        return false;
-    }*/
+        return NO;
+    }
 
     // If the "Open With" attribute on a file has been changed, that could potentially be dangerous. Only unquarantine a file if this
     // attribute is not set to a non-default value. Note that sandboxed processes can't choose to open a file in an app other than the
