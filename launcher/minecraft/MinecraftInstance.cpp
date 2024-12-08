@@ -556,7 +556,7 @@ QMap<QString, QString> MinecraftInstance::getVariables()
     out.insert("INST_JAVA", settings()->get("JavaPath").toString());
     out.insert("INST_JAVA_ARGS", javaArguments().join(' '));
     out.insert("NO_COLOR", "1");
-#if defined(Q_OS_MAC)
+#if defined(Q_OS_MACOS) && defined(SANDBOX_ENABLED)
     QDir dlopenDir = QDir(Application::applicationDirPath());
     dlopenDir.cdUp();
     dlopenDir.cd("Frameworks");

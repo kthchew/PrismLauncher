@@ -1156,20 +1156,19 @@ if (APPLE)
     set(LAUNCHER_SOURCES
         ${LAUNCHER_SOURCES}
 
-        xpcbridge/XPCBridge.h
-        xpcbridge/XPCBridge.cpp
-        xpcbridge/XPCManager.h
-        xpcbridge/XPCManager.mm
+        macsandbox/SecurityBookmarkFileAccess.h
+        macsandbox/SecurityBookmarkFileAccess.mm
     )
-endif()
+    if (Launcher_ENABLE_SANDBOX)
+        set(LAUNCHER_SOURCES
+            ${LAUNCHER_SOURCES}
 
-if (APPLE)
-    set(LAUNCHER_SOURCES
-        ${LAUNCHER_SOURCES}
-
-            macsandbox/SecurityBookmarkFileAccess.h
-            macsandbox/SecurityBookmarkFileAccess.mm
-    )
+            xpcbridge/XPCBridge.h
+            xpcbridge/XPCBridge.cpp
+            xpcbridge/XPCManager.h
+            xpcbridge/XPCManager.mm
+        )
+    endif()
 endif()
 
 if(WIN32)
@@ -1348,6 +1347,10 @@ if(APPLE)
     endif()
 endif()
 
+if(Launcher_ENABLE_SANDBOX)
+    add_compile_definitions(SANDBOX_ENABLED)
+endif()
+
 target_link_libraries(Launcher_logic)
 
 add_executable(${Launcher_Name} MACOSX_BUNDLE WIN32 main.cpp ${LAUNCHER_RCS})
@@ -1372,7 +1375,7 @@ install(TARGETS ${Launcher_Name}
     FRAMEWORK DESTINATION ${FRAMEWORK_DEST_DIR} COMPONENT Runtime
 )
 
-if(UNIX AND APPLE)
+if(UNIX AND APPLE AND Launcher_ENABLE_SANDBOX)
     install(TARGETS dlopen_hook
         LIBRARY DESTINATION "${FRAMEWORK_DEST_DIR}" COMPONENT Runtime
     )

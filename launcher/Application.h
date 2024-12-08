@@ -309,7 +309,7 @@ class Application : public QApplication {
     QList<QUrl> m_urlsToImport;
     QString m_instanceIdToShowWindowOf;
     std::unique_ptr<QFile> logFile;
-#ifdef Q_OS_MACOS
+#if defined(Q_OS_MACOS) && defined(SANDBOX_ENABLED)
     XPCBridge* m_xpcBridge = nullptr;
 #endif
 

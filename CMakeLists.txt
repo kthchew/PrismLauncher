@@ -235,6 +235,9 @@ endif()
 # Java downloader
 option(Launcher_ENABLE_JAVA_DOWNLOADER "Build the java downloader feature" ${Launcher_ENABLE_JAVA_DOWNLOADER_DEFAULT})
 
+# Build with sandbox features/services
+option(Launcher_ENABLE_SANDBOX "Build with sandbox features/services enabled" OFF)
+
 # Native libraries
 if(UNIX AND APPLE)
     set(Launcher_GLFW_LIBRARY_NAME "libglfw.dylib" CACHE STRING "Name of native glfw library")
@@ -553,7 +556,7 @@ endif()
 add_subdirectory(libraries/qdcss) # css parser
 
 ########################### XPC Service (macOS only) ##########################
-if(UNIX AND APPLE)
+if(UNIX AND APPLE AND Launcher_ENABLE_SANDBOX)
     add_subdirectory(xpc)
     add_subdirectory(libraries/dlopen-hook)
 endif()

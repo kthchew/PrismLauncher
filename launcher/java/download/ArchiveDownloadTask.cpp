@@ -26,7 +26,7 @@
 #include "net/NetJob.h"
 #include "tasks/Task.h"
 
-#ifdef Q_OS_MACOS
+#if defined(Q_OS_MACOS) && defined(SANDBOX_ENABLED)
 #include "xpcbridge/XPCManager.h"
 #endif
 
@@ -81,7 +81,7 @@ void ArchiveDownloadTask::extractJava(QString input)
             emitFailed(tr("Unable to extract supplied tar file."));
             return;
         }
-#ifdef Q_OS_MACOS
+#if defined(Q_OS_MACOS) && defined(SANDBOX_ENABLED)
         applyDownloadQuarantineToDirectory(QDir(m_final_path).absolutePath().toNSString());
 #endif
         emitSucceeded();
@@ -92,7 +92,7 @@ void ArchiveDownloadTask::extractJava(QString input)
             emitFailed(tr("Unable to extract supplied tar file."));
             return;
         }
-#ifdef Q_OS_MACOS
+#if defined(Q_OS_MACOS) && defined(SANDBOX_ENABLED)
         applyDownloadQuarantineToDirectory(QDir(m_final_path).absolutePath().toNSString());
 #endif
         emitSucceeded();
@@ -117,7 +117,7 @@ void ArchiveDownloadTask::extractJava(QString input)
         });
 
         connect(m_task.get(), &Task::succeeded, this, [this] {
-#ifdef Q_OS_MACOS
+#if defined(Q_OS_MACOS) && defined(SANDBOX_ENABLED)
             applyDownloadQuarantineToDirectory(QDir(m_final_path).absolutePath().toNSString());
 #endif
             emitSucceeded();

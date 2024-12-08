@@ -23,7 +23,7 @@
 #include "net/ChecksumValidator.h"
 #include "net/NetJob.h"
 
-#ifdef Q_OS_MACOS
+#if defined(Q_OS_MACOS) && defined(SANDBOX_ENABLED)
 #include "xpcbridge/XPCManager.h"
 #endif
 
@@ -131,7 +131,7 @@ void ManifestDownloadTask::downloadJava(const QJsonDocument& doc)
     connect(elementDownload.get(), &Task::details, this, &ManifestDownloadTask::setDetails);
 
     connect(elementDownload.get(), &Task::succeeded, this, [this] {
-#ifdef Q_OS_MACOS
+#if defined(Q_OS_MACOS) && defined(SANDBOX_ENABLED)
         auto iter = QDirIterator(m_final_path, QDir::Dirs | QDir::NoDotAndDotDot);
         while (iter.hasNext()) {
             QString path = QDir(iter.next()).absolutePath();

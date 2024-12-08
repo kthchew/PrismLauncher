@@ -147,7 +147,9 @@
 #endif
 
 #if defined(Q_OS_MAC)
+#if defined(SANDBOX_ENABLED)
 #include "xpcbridge/XPCBridge.h"
+#endif
 #if defined(SPARKLE_ENABLED)
 #include "updater/MacSparkleUpdater.h"
 #endif
@@ -1082,7 +1084,7 @@ Application::Application(int& argc, char** argv) : QApplication(argc, argv)
         }
     }
 
-#ifdef Q_OS_MACOS
+#if defined(Q_OS_MACOS) && defined(SANDBOX_ENABLED)
     m_xpcBridge = new XPCBridge();
 #endif
 

@@ -3,6 +3,9 @@
 # Run this script from the directory containing "PrismLauncher.app"
 
 CODE_SIGN_IDENTITY="${1:--}"
+SANDBOX_ENABLED="${2:-false}"
+
+[[ $SANDBOX_ENABLED == "true" ]] && ENTITLEMENTS_FILE="../program_info/App.entitlements" || ENTITLEMENTS_FILE="../program_info/AppNoSandbox.entitlements"
 
 ################ FRAMEWORKS ################
 cd "PrismLauncher.app/Contents/Frameworks" || exit 1
@@ -19,8 +22,9 @@ codesign -f --timestamp -s "$CODE_SIGN_IDENTITY" ./*.framework
 codesign -f --timestamp -s "$CODE_SIGN_IDENTITY" ./*.dylib
 
 ################ XPC SERVICES ################
-cd "../XPCServices" || exit 1
-codesign -f --timestamp -s "$CODE_SIGN_IDENTITY" -o runtime ./*.xpc
+if cd "../XPCServices"; then
+    codesign -f --timestamp -s "$CODE_SIGN_IDENTITY" -o runtime ./*.xpc
+fi
 
 ################ PLUGINS ################
 cd "../MacOS" || exit 1
@@ -33,4 +37,4 @@ codesign -f --timestamp -s "$CODE_SIGN_IDENTITY" tls/*.dylib
 
 ################ APP ################
 cd "../../.." || exit 1
-codesign -f --timestamp -s "$CODE_SIGN_IDENTITY" --entitlements ../program_info/App.entitlements -o runtime ./PrismLauncher.app/Contents/MacOS/prismlauncher
+codesign -f --timestamp -s "$CODE_SIGN_IDENTITY" --entitlements "$ENTITLEMENTS_FILE" -o runtime ./PrismLauncher.app/Contents/MacOS/prismlauncher
