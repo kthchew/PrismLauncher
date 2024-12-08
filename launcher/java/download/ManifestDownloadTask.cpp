@@ -23,6 +23,10 @@
 #include "net/ChecksumValidator.h"
 #include "net/NetJob.h"
 
+#ifdef Q_OS_MACOS
+#include "xpcbridge/XPCManager.h"
+#endif
+
 struct File {
     QString path;
     QString url;
@@ -89,8 +93,12 @@ void ManifestDownloadTask::downloadJava(const QJsonDocument& doc)
             // this is linux only !
             auto path = Json::ensureString(meta, "target");
             if (!path.isEmpty()) {
+#ifdef Q_OS_MACOS
+                QFile::link(path, file);
+#else
                 auto target = FS::PathCombine(file, "../" + path);
                 QFile(target).link(file);
+#endif
             }
         } else if (type == "file") {
             // TODO download compressed version if it exists ?
@@ -122,7 +130,16 @@ void ManifestDownloadTask::downloadJava(const QJsonDocument& doc)
     connect(elementDownload.get(), &Task::status, this, &ManifestDownloadTask::setStatus);
     connect(elementDownload.get(), &Task::details, this, &ManifestDownloadTask::setDetails);
 
-    connect(elementDownload.get(), &Task::succeeded, this, &ManifestDownloadTask::emitSucceeded);
+    connect(elementDownload.get(), &Task::succeeded, this, [this] {
+#ifdef Q_OS_MACOS
+        auto iter = QDirIterator(m_final_path, QDir::Dirs | QDir::NoDotAndDotDot);
+        while (iter.hasNext()) {
+            QString path = QDir(iter.next()).absolutePath();
+            removeQuarantineFromMojangJavaDirectory(path.toNSString(), m_url.toNSURL());
+        }
+#endif
+        this->emitSucceeded();
+    });
     m_task = elementDownload;
     m_task->start();
 }

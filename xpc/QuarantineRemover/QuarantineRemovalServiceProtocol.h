@@ -22,8 +22,17 @@
 /// Ask the service to remove quarantine from the file at `path`.
 ///
 /// Some metadata of the file may be modified to prevent a sandbox escape. For example, the executable bit on a file may be removed.
-/// - Parameters:
-///   - path: The path of the file to remove quarantine for.
-///   - reply: A boolean indicating whether quarantine was removed, and the path of the unquarantined item. Note that `NO` doesn't necessarily mean the file is currently quarantined.
+///
+/// \param path: The path of the file to remove quarantine for.
+/// \param reply: A boolean indicating whether quarantine was removed, and the path of the unquarantined item. Note that `NO` doesn't necessarily mean the file is currently quarantined.
 - (void)removeQuarantineFromFileAt:(NSString *)path withReply:(void (^)(BOOL *, NSString *))reply;
+/// Ask the service to remove quarantine from the directory at `path`. The directory is intended to be a Java runtime downloaded from the
+/// given manifest. The manifest must come from Mojang (piston-meta.mojang.com) and all files inside the directory must match the checksums.
+///
+/// \param path The path of a directory containing a Java runtime to remove quarantine for.
+/// \param manifestURL A URL to a Mojang manifest that the Java runtime was downloaded from.
+/// \param reply A boolean indicating whether quarantine was removed.
+- (void)removeQuarantineRecursivelyFromJavaInstallAt:(NSString*)path
+                            downloadedFromManifestAt:(NSURL*)manifestURL
+                                           withReply:(void (^)(BOOL *))reply;
 @end

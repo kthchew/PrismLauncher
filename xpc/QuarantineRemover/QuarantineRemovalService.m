@@ -18,12 +18,13 @@
 
 #import "QuarantineRemovalService.h"
 #import <AppKit/AppKit.h>
+#import <CommonCrypto/CommonDigest.h>
 #import <UniformTypeIdentifiers/UniformTypeIdentifiers.h>
 
 BOOL shouldRemoveQuarantine(NSURL* url)
 {
     // Avoid unquarantining directories (such as bundles, which can include applications).
-    NSNumber *isRegularFile;
+    NSNumber* isRegularFile;
     if (!([url getResourceValue:&isRegularFile forKey:NSURLIsRegularFileKey error:nil] && [isRegularFile boolValue])) {
         return NO;
     }
@@ -105,31 +106,7 @@ BOOL shouldRemoveQuarantine(NSURL* url)
     }
 
     // Now that it is safe to do so, remove quarantine.
-    [unquarantinedCopyURL setResourceValue:nil forKey:NSURLQuarantinePropertiesKey error:&err];
-    if (err) {
-        NSLog(@"Couldn't remove quarantine: %@", [err localizedDescription]);
-        reply(&result, path);
-        [[NSFileManager defaultManager] removeItemAtURL:temporaryDirectory error:nil];
-        return;
-    }
-    // Apple says to do the above, but it instead puts some kind of "quarantine removed" flag on some systems rather than just removing it.
-    // There's a macOS bug (?) that causes Gatekeeper to still deny a dynamic library with such an attribute from loading. (FB15970881)
-    // Using xattr to remove the quarantine flag works around this issue, though this isn't ideal.
-    NSDictionary<NSURLResourceKey, id>* quarantineAfter = [unquarantinedCopyURL resourceValuesForKeys:@[ NSURLQuarantinePropertiesKey ]
-                                                                                                error:nil];
-    if (quarantineAfter[NSURLQuarantinePropertiesKey] != nil) {
-        NSTask* task = [[NSTask alloc] init];
-        [task setLaunchPath:@"/usr/bin/xattr"];
-        [task setArguments:@[ @"-d", @"com.apple.quarantine", unquarantinedCopyURL.path ]];
-        [task launch];
-        [task waitUntilExit];
-        if ([task terminationStatus] != 0) {
-            NSLog(@"Couldn't remove quarantine: %@", [err localizedDescription]);
-            reply(&result, path);
-            [[NSFileManager defaultManager] removeItemAtURL:temporaryDirectory error:nil];
-            return;
-        }
-    }
+    [self removeQuarantineForFileAt:unquarantinedCopyURL];
 
     // Put the file back where it originally was.
     [[NSFileManager defaultManager] replaceItemAtURL:url
@@ -148,6 +125,183 @@ BOOL shouldRemoveQuarantine(NSURL* url)
         reply(&result, path);
         [[NSFileManager defaultManager] removeItemAtURL:temporaryDirectory error:nil];
     }
+}
+
+- (void)removeQuarantineRecursivelyFromJavaInstallAt:(NSString*)path
+                            downloadedFromManifestAt:(NSURL*)manifestURL
+                                           withReply:(void (^)(BOOL*))reply
+{
+    __block BOOL result = NO;
+    NSURL* directoryURL = [NSURL fileURLWithPath:path];
+
+    if (![manifestURL.scheme isEqualToString:@"https"] || ![manifestURL.host isEqualToString:@"piston-meta.mojang.com"]) {
+        NSLog(@"Invalid manifest URL: %@", manifestURL);
+        reply(&result);
+        return;
+    }
+
+    // Copy the directory to a temporary location outside the sandbox, so the sandboxed code can't interfere with the below operations.
+    __block NSError* err = nil;
+    NSURL* temporaryDirectory = [[NSFileManager defaultManager] URLForDirectory:NSItemReplacementDirectory
+                                                                       inDomain:NSUserDomainMask
+                                                              appropriateForURL:directoryURL
+                                                                         create:YES
+                                                                          error:&err];
+    if (err) {
+        NSLog(@"An error occurred while creating a temporary directory for %@: %@", directoryURL, [err localizedDescription]);
+        reply(&result);
+        return;
+    }
+    NSURL* unquarantinedCopyURL = [temporaryDirectory URLByAppendingPathComponent:[directoryURL lastPathComponent]];
+    [[NSFileManager defaultManager] copyItemAtURL:directoryURL toURL:unquarantinedCopyURL error:&err];
+    if (err) {
+        NSLog(@"An error occurred while copying the directory to a temporary location: %@", [err localizedDescription]);
+        reply(&result);
+        [[NSFileManager defaultManager] removeItemAtURL:temporaryDirectory error:nil];
+        return;
+    }
+
+    NSURLSession* session = [NSURLSession sharedSession];
+    NSURLSessionDataTask* downloadTask =
+        [session dataTaskWithURL:manifestURL
+               completionHandler:^(NSData* data, NSURLResponse* response, NSError* error) {
+                 if (error) {
+                     NSLog(@"Failed to download manifest: %@", error.localizedDescription);
+                     reply(&result);
+                     [[NSFileManager defaultManager] removeItemAtURL:temporaryDirectory error:nil];
+                     return;
+                 }
+
+                 NSError* jsonError = nil;
+                 NSDictionary* manifest = [NSJSONSerialization JSONObjectWithData:data options:0 error:&jsonError];
+                 if (jsonError) {
+                     NSLog(@"Failed to parse JSON manifest: %@", [jsonError localizedDescription]);
+                     reply(&result);
+                     [[NSFileManager defaultManager] removeItemAtURL:temporaryDirectory error:nil];
+                     return;
+                 }
+
+                 NSDictionary* files = manifest[@"files"];
+                 result = [self verifyJavaRuntimeAt:temporaryDirectory againstFileManifest:files];
+
+                 if (!result) {
+                     reply(&result);
+                     [[NSFileManager defaultManager] removeItemAtURL:temporaryDirectory error:nil];
+                     return;
+                 }
+
+                 // Recursively remove quarantine from all files in the directory.
+                 NSDirectoryEnumerator* enumerator = [[NSFileManager defaultManager] enumeratorAtURL:temporaryDirectory
+                                                   includingPropertiesForKeys:@[ NSURLIsRegularFileKey ]
+                                                                      options:0
+                                                                 errorHandler:nil];
+                 for (NSURL* fileURL in enumerator) {
+                     BOOL removed = [self removeQuarantineForFileAt:fileURL];
+                     if (!removed) {
+                         NSLog(@"Failed to remove quarantine from %@", fileURL.path);
+                         result = NO;
+                         reply(&result);
+                         [[NSFileManager defaultManager] removeItemAtURL:temporaryDirectory error:nil];
+                         return;
+                     }
+                 }
+
+                 // Put the directory back where it originally was.
+                 [[NSFileManager defaultManager] replaceItemAtURL:directoryURL
+                                                    withItemAtURL:unquarantinedCopyURL
+                                                   backupItemName:nil
+                                                          options:NSFileManagerItemReplacementUsingNewMetadataOnly
+                                                 resultingItemURL:nil
+                                                            error:&err];
+                 if (err) {
+                     NSLog(@"Couldn't copy back: %@", [err localizedDescription]);
+                     reply(&result);
+                     [[NSFileManager defaultManager] removeItemAtURL:temporaryDirectory error:nil];
+                     return;
+                 }
+
+                 reply(&result);
+                 [[NSFileManager defaultManager] removeItemAtURL:temporaryDirectory error:nil];
+               }];
+
+    [downloadTask resume];
+}
+
+@end
+
+@implementation QuarantineRemovalService (Private)
+
+- (BOOL)removeQuarantineForFileAt:(NSURL*)fileURL
+{
+    NSError* err = nil;
+    [fileURL setResourceValue:nil forKey:NSURLQuarantinePropertiesKey error:&err];
+    if (err) {
+        NSLog(@"Couldn't remove quarantine: %@", [err localizedDescription]);
+        return NO;
+    }
+    // Apple says to do the above, but it instead puts some kind of "quarantine removed" flag on some systems rather than just removing it.
+    // There's a macOS bug (?) that causes Gatekeeper to still deny a dynamic library with such an attribute from loading. (FB15970881)
+    // Using xattr to remove the quarantine flag works around this issue, though this isn't ideal.
+    NSDictionary<NSURLResourceKey, id>* quarantineAfter = [fileURL resourceValuesForKeys:@[ NSURLQuarantinePropertiesKey ] error:nil];
+    if (quarantineAfter[NSURLQuarantinePropertiesKey] != nil) {
+        NSTask* task = [[NSTask alloc] init];
+        [task setLaunchPath:@"/usr/bin/xattr"];
+        [task setArguments:@[ @"-sd", @"com.apple.quarantine", fileURL.path ]];
+        [task launch];
+        [task waitUntilExit];
+        if ([task terminationStatus] != 0) {
+            NSLog(@"Couldn't remove quarantine on %@ using xattr", fileURL.path);
+            return NO;
+        }
+    }
+
+    return YES;
+}
+
+- (BOOL)verifyJavaRuntimeAt:(NSURL*)url againstFileManifest:(NSDictionary*)files
+{
+    // Check if there are any files in the directory that are not listed in the manifest - these might be malicious.
+    NSDirectoryEnumerator* enumerator = [[NSFileManager defaultManager] enumeratorAtURL:url
+                                                             includingPropertiesForKeys:@[ NSURLIsRegularFileKey ]
+                                                                                options:0
+                                                                           errorHandler:nil];
+    for (NSURL* fileURL in enumerator) {
+        NSString* relativePath =
+            [[[fileURL URLByResolvingSymlinksInPath] path] substringFromIndex:[[url URLByResolvingSymlinksInPath] path].length + 1];
+        if (!files[relativePath]) {
+            NSLog(@"File not listed in manifest: %@", fileURL.path);
+            return NO;
+        }
+    }
+
+    for (NSString* relativePath in files) {
+        NSDictionary* fileInfo = files[relativePath];
+        if ([fileInfo[@"type"] isEqualToString:@"file"]) {
+            NSString* expectedChecksum = fileInfo[@"downloads"][@"raw"][@"sha1"];
+            NSData* fileData = [NSData dataWithContentsOfURL:[url URLByAppendingPathComponent:relativePath]];
+            if (!fileData) {
+                NSLog(@"Failed to read file: %@", relativePath);
+                return NO;
+            }
+            if ([fileData length] != [fileInfo[@"downloads"][@"raw"][@"size"] unsignedLongLongValue]) {
+                NSLog(@"Size mismatch for file: %@", relativePath);
+                return NO;
+            }
+            unsigned char actualChecksumData[CC_SHA1_DIGEST_LENGTH];
+            CC_SHA1([fileData bytes], [fileData length], actualChecksumData);
+            NSMutableString* actualChecksum = [NSMutableString stringWithCapacity:CC_SHA1_DIGEST_LENGTH * 2];
+            for (int i = 0; i < CC_SHA1_DIGEST_LENGTH; i++) {
+                [actualChecksum appendFormat:@"%02x", actualChecksumData[i]];
+            }
+
+            if (![expectedChecksum isEqualToString:actualChecksum]) {
+                NSLog(@"Checksum mismatch for file: %@", relativePath);
+                return NO;
+            }
+        }
+    }
+
+    return YES;
 }
 
 @end
