@@ -67,14 +67,17 @@ void XPCBridge::onNewConnection() const
 }
 void XPCBridge::startListening()
 {
-    QString socketPath = "prism-launcher";
-    QLocalServer::removeServer(socketPath);
-    server->listen(socketPath);
-    if (!server->isListening()) {
-        qWarning() << "XPC Bridge failed to listen on socket at " << socketPath;
-    } else {
-        qDebug() << "XPC Bridge listening on socket at " << server->fullServerName();
+    int maxSocketRange = 9;
+    for (int i = 0; i <= maxSocketRange; i++) {
+        QString socketPath = QString::number(i);
+        QLocalServer::removeServer(socketPath);
+        server->listen(socketPath);
+        if (!server->isListening()) {
+            qWarning() << "XPC Bridge failed to listen on socket at " << socketPath;
+        } else {
+            qDebug() << "XPC Bridge listening on socket at " << server->fullServerName();
+            connect(server, &QLocalServer::newConnection, this, &XPCBridge::onNewConnection);
+            break;
+        }
     }
-
-    connect(server, &QLocalServer::newConnection, this, &XPCBridge::onNewConnection);
 }
