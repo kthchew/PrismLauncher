@@ -21,6 +21,11 @@
 #import <CommonCrypto/CommonDigest.h>
 #import <UniformTypeIdentifiers/UniformTypeIdentifiers.h>
 
+@interface QuarantineRemovalService (Private)
+- (BOOL)removeQuarantineForFileAt:(NSURL*)fileURL;
+- (BOOL)verifyJavaRuntimeAt:(NSURL*)url againstFileManifest:(NSDictionary*)files;
+@end
+
 BOOL shouldRemoveQuarantine(NSURL* url)
 {
     // Avoid unquarantining directories (such as bundles, which can include applications).
@@ -225,6 +230,32 @@ BOOL shouldRemoveQuarantine(NSURL* url)
                }];
 
     [downloadTask resume];
+}
+
+- (void)applyDownloadQuarantineRecursivelyToJavaInstallAt:(NSString*)path
+                                                withReply:(void (^)(BOOL *))reply
+{
+    BOOL result = YES;
+    NSURL* directoryURL = [NSURL fileURLWithPath:path];
+    NSDirectoryEnumerator* enumerator = [[NSFileManager defaultManager] enumeratorAtURL:directoryURL
+                                                             includingPropertiesForKeys:@[ NSURLIsRegularFileKey ]
+                                                                                options:0
+                                                                           errorHandler:nil];
+    NSDictionary* quarantineProperties = @{ NSURLQuarantinePropertiesKey : @{
+        (__bridge id)kLSQuarantineAgentNameKey : @"Prism Launcher",
+        (__bridge id)kLSQuarantineTypeKey : (__bridge id)kLSQuarantineTypeOtherDownload,
+    } };
+    for (NSURL* fileURL in enumerator) {
+        NSError* err = nil;
+        [fileURL setResourceValue:@{} forKey:NSURLQuarantinePropertiesKey error:&err];
+        if (err) {
+            NSLog(@"Couldn't apply quarantine: %@", [err localizedDescription]);
+            reply(&result);
+            return;
+        }
+    }
+
+    reply(&result);
 }
 
 @end

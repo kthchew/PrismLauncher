@@ -35,4 +35,12 @@
 - (void)removeQuarantineRecursivelyFromJavaInstallAt:(NSString*)path
                             downloadedFromManifestAt:(NSURL*)manifestURL
                                            withReply:(void (^)(BOOL *))reply;
+/// Apply a quarantine to all files at the provided `path` that indicates that the files were downloaded from the Internet. Unlike the
+/// typical sandbox quarantine applied by default, a download quarantine allows executables to run if they are able to get past
+/// Gatekeeper.
+///
+/// \param path The path of a directory containing files to apply quarantine to.
+/// \param reply A boolean indicating whether quarantine was applied.
+- (void)applyDownloadQuarantineRecursivelyToJavaInstallAt:(NSString*)path
+                                               withReply:(void (^)(BOOL *))reply;
 @end

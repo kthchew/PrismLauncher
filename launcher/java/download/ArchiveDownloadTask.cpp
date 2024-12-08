@@ -26,6 +26,10 @@
 #include "net/NetJob.h"
 #include "tasks/Task.h"
 
+#ifdef Q_OS_MACOS
+#include "xpcbridge/XPCManager.h"
+#endif
+
 namespace Java {
 ArchiveDownloadTask::ArchiveDownloadTask(QUrl url, QString final_path, QString checksumType, QString checksumHash)
     : m_url(url), m_final_path(final_path), m_checksum_type(checksumType), m_checksum_hash(checksumHash)
@@ -77,6 +81,9 @@ void ArchiveDownloadTask::extractJava(QString input)
             emitFailed(tr("Unable to extract supplied tar file."));
             return;
         }
+#ifdef Q_OS_MACOS
+        applyDownloadQuarantineToDirectory(QDir(m_final_path).absolutePath().toNSString());
+#endif
         emitSucceeded();
         return;
     } else if (input.endsWith("tar.gz") || input.endsWith("taz") || input.endsWith("tgz")) {
@@ -85,6 +92,9 @@ void ArchiveDownloadTask::extractJava(QString input)
             emitFailed(tr("Unable to extract supplied tar file."));
             return;
         }
+#ifdef Q_OS_MACOS
+        applyDownloadQuarantineToDirectory(QDir(m_final_path).absolutePath().toNSString());
+#endif
         emitSucceeded();
         return;
     } else if (input.endsWith("zip")) {
@@ -106,7 +116,12 @@ void ArchiveDownloadTask::extractJava(QString input)
             stepProgress(*progressStep);
         });
 
-        connect(m_task.get(), &Task::succeeded, this, &ArchiveDownloadTask::emitSucceeded);
+        connect(m_task.get(), &Task::succeeded, this, [this] {
+#ifdef Q_OS_MACOS
+            applyDownloadQuarantineToDirectory(QDir(m_final_path).absolutePath().toNSString());
+#endif
+            emitSucceeded();
+        });
         connect(m_task.get(), &Task::aborted, this, &ArchiveDownloadTask::emitAborted);
         connect(m_task.get(), &Task::failed, this, [this, progressStep](QString reason) {
             progressStep->state = TaskStepState::Failed;

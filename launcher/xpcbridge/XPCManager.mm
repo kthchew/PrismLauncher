@@ -93,3 +93,32 @@ bool removeQuarantineFromMojangJavaDirectory(NSString* path, NSURL* manifestURL)
     dispatch_group_wait(syncGroup, waitTime);
     return result;
 }
+
+bool applyDownloadQuarantineToDirectory(NSString* path)
+{
+    __block bool result;
+    dispatch_group_t syncGroup = dispatch_group_create();
+    dispatch_group_enter(syncGroup);
+
+    NSXPCConnection* _connectionToService =
+        [[NSXPCConnection alloc] initWithServiceName:@"org.prismlauncher.PrismLauncher.QuarantineRemovalService"];
+    _connectionToService.remoteObjectInterface = [NSXPCInterface interfaceWithProtocol:@protocol(QuarantineRemovalServiceProtocol)];
+    [_connectionToService resume];
+
+    dispatch_time_t waitTime = dispatch_time(DISPATCH_TIME_NOW, (int64_t)(NSEC_PER_SEC * 5));
+
+    id conn = [_connectionToService remoteObjectProxyWithErrorHandler:^(NSError* _Nonnull error) {
+      NSLog(@"Error occurred while contacting XPC service: %@", error);
+      result = false;
+      dispatch_group_leave(syncGroup);
+    }];
+    [conn applyDownloadQuarantineRecursivelyToJavaInstallAt:path
+                                                  withReply:^(BOOL* ok) {
+                                                    NSLog(@"Received response from XPC service: %d", *ok);
+                                                    result = *ok;
+                                                    dispatch_group_leave(syncGroup);
+                                                  }];
+
+    dispatch_group_wait(syncGroup, waitTime);
+    return result;
+}

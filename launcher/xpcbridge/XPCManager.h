@@ -25,5 +25,6 @@ Q_FORWARD_DECLARE_OBJC_CLASS(NSURL);
 
 std::pair<bool, std::string> askToRemoveQuarantine(char* path);
 bool removeQuarantineFromMojangJavaDirectory(NSString* path, NSURL* manifestURL);
+bool applyDownloadQuarantineToDirectory(NSString* path);
 
 #endif //XPCMANAGER_H
