@@ -1345,6 +1345,12 @@ if(APPLE)
     if(Launcher_ENABLE_UPDATER)
       target_link_libraries(Launcher_logic ${SPARKLE_FRAMEWORK})
     endif()
+
+    if(Launcher_ENABLE_SANDBOX)
+        set(ENABLE_SPARKLE_INSTALLER_LAUNCHER_SERVICE "true")
+    else()
+        set(ENABLE_SPARKLE_INSTALLER_LAUNCHER_SERVICE "false")
+    endif()
 endif()
 
 if(Launcher_ENABLE_SANDBOX)

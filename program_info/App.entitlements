@@ -35,6 +35,11 @@
         <string>/.bin/</string>
         <string>/Library/Java/JavaVirtualMachines/</string>
     </array>
+    <key>com.apple.security.temporary-exception.mach-lookup.global-name</key>
+    <array>
+        <string>@Launcher_Identifier@-spks</string>
+        <string>@Launcher_Identifier@-spki</string>
+    </array>
     <key>com.apple.security.temporary-exception.sbpl</key>
     <string>
         (allow process-exec (regex #".*/bin/java$"))

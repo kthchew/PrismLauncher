@@ -400,8 +400,14 @@ jobs:
           else
             APPLE_CODESIGN_ID='-'
           fi
+          
+          if [ "${{ matrix.sandbox_enabled }}" == "true" ]; then
+            MAIN_ENTITLEMENTS_FILE="${{ github.workspace }}//${{ env.BUILD_DIR }}/program_info/App.entitlements"
+          else
+            MAIN_ENTITLEMENTS_FILE="${{ github.workspace }}//${{ env.BUILD_DIR }}/program_info/AppNoSandbox.entitlements"
+          fi
 
-          ../program_info/macos_signature.sh "$APPLE_CODESIGN_ID" '${{ matrix.sandbox_enabled }}'
+          ../program_info/macos_signature.sh "$APPLE_CODESIGN_ID" "$MAIN_ENTITLEMENTS_FILE"
           mv "PrismLauncher.app" "Prism Launcher.app"
 
       - name: Notarize (macOS)
