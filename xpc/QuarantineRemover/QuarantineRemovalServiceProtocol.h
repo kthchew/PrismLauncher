@@ -43,4 +43,8 @@
 /// \param reply A boolean indicating whether quarantine was applied.
 - (void)applyDownloadQuarantineRecursivelyToJavaInstallAt:(NSString*)path
                                                withReply:(void (^)(BOOL *))reply;
+/// Get the value of NSTemporaryDirectory() for a nonsandboxed process.
+///
+/// \param reply The path of the temporary directory.
+- (void)retrieveUnsandboxedUserTemporaryDirectoryWithReply:(void (^)(NSString *))reply;
 @end

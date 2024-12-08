@@ -149,6 +149,7 @@
 #if defined(Q_OS_MAC)
 #if defined(SANDBOX_ENABLED)
 #include "xpcbridge/XPCBridge.h"
+#include "xpcbridge/XPCManager.h"
 #endif
 #if defined(SPARKLE_ENABLED)
 #include "updater/MacSparkleUpdater.h"
@@ -1086,6 +1087,22 @@ Application::Application(int& argc, char** argv) : QApplication(argc, argv)
 
 #if defined(Q_OS_MACOS) && defined(SANDBOX_ENABLED)
     m_xpcBridge = new XPCBridge();
+
+    // symlink discord IPC socket into the sandbox so the game can access it
+    QDir tempDir(qEnvironmentVariable("TMPDIR"));
+    QString unsandboxedTempDir = getUnsandboxedTemporaryDirectory();
+    if (tempDir.exists()) {
+        for (int i = 0; i <= 9; i++) {
+            QString ipcName = QString("discord-ipc-%1").arg(i);
+            QString ipcPathFull = tempDir.filePath(ipcName);
+            QFileInfo currentIPCInfo(ipcPathFull);
+            if (currentIPCInfo.isSymbolicLink()) {
+                QFile::remove(ipcPathFull);
+            }
+
+            QFile::link(unsandboxedTempDir + ipcName, ipcPathFull);
+        }
+    }
 #endif
 
     if (createSetupWizard()) {

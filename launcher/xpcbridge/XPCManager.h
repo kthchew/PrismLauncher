@@ -19,12 +19,12 @@
 #ifndef XPCMANAGER_H
 #define XPCMANAGER_H
 #include <string>
-#include <QtCore/QtCore>
-Q_FORWARD_DECLARE_OBJC_CLASS(NSString);
-Q_FORWARD_DECLARE_OBJC_CLASS(NSURL);
+#include <QObject>
+#include <QUrl>
 
 std::pair<bool, std::string> askToRemoveQuarantine(char* path);
 bool removeQuarantineFromMojangJavaDirectory(NSString* path, NSURL* manifestURL);
 bool applyDownloadQuarantineToDirectory(NSString* path);
+QString getUnsandboxedTemporaryDirectory();
 
 #endif //XPCMANAGER_H

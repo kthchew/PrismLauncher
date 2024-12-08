@@ -258,6 +258,11 @@ BOOL shouldRemoveQuarantine(NSURL* url)
     reply(&result);
 }
 
+- (void)retrieveUnsandboxedUserTemporaryDirectoryWithReply:(void (^)(NSString *))reply
+{
+    reply(NSTemporaryDirectory());
+}
+
 @end
 
 @implementation QuarantineRemovalService (Private)
