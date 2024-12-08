@@ -41,9 +41,10 @@
         <string>@Launcher_Identifier@-spki</string>
     </array>
     <key>com.apple.security.temporary-exception.sbpl</key>
-    <string>
-        (allow process-exec (regex #".*/bin/java$"))
-        (allow process-exec (regex #".*/lib/jspawnhelper"))
-    </string>
+    <array>
+        <string>(allow process-exec (regex #".*/Contents/Home/bin/.*$"))</string>
+        <string>(allow process-exec (regex #".*/Contents/Home/lib/.*$"))</string>
+        <string>(allow network-outbound (regex #"^/private/var/folders/.*/discord-ipc-[0-9]$"))</string>
+    </array>
 </dict>
 </plist>
