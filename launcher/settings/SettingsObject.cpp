@@ -24,6 +24,7 @@
 #include <utility>
 
 #ifdef Q_OS_MACOS
+#include "ui/dialogs/CustomMessageBox.h"
 #include "macsandbox/SecurityBookmarkFileAccess.h"
 #endif
 
@@ -170,28 +171,41 @@ bool SettingsObject::setPathWithBookmark(const QString& id, const QString& path)
         qCritical() << QString("Error changing setting %1. Setting doesn't exist.").arg(id);
         return false;
     }
-    if (setting->get() == path) {
-        // no change, no need to do anything
-        return true;
+    QString bookmarkId = id + "Bookmark";
+    std::shared_ptr<Setting> bookmarkSetting = getSetting(bookmarkId);
+    if (!bookmarkSetting) {
+        qCritical() << QString("Error changing setting %1. Setting doesn't exist.").arg(bookmarkId);
+        return false;
     }
-
     QDir dir(path);
     if (!dir.exists()) {
-        qCritical() << QString("Error changing setting %1. Path doesn't exist.").arg(id);
+        qWarning() << QString("Error changing setting %1. Path doesn't exist.").arg(bookmarkId);
         return false;
     }
     QString absolutePath = dir.absolutePath();
-    QString bookmarkId = id + "Bookmark";
-    std::shared_ptr<Setting> bookmarkSetting = getSetting(bookmarkId);
     // there is no need to use bookmarks if the default value is used or the directory is within the data directory (already can access)
     if (path == setting->defValue().toString() || absolutePath.startsWith(QDir::current().absolutePath())) {
         bookmarkSetting->reset();
         return true;
     }
+    if (setting->get() == path && !bookmarkSetting->get().toByteArray().isEmpty()) {
+        // no change, no need to do anything
+        return true;
+    }
+
     QByteArray bytes = m_sandboxedFileAccess.pathToSecurityScopedBookmark(absolutePath);
     if (bytes.isEmpty()) {
         qCritical() << QString("Failed to create bookmark for %1 - no access?").arg(id);
-        // TODO: show an alert to the user asking them to reselect the directory
+        if (!m_showedBookmarkErrors.contains(id) && !QFileInfo(absolutePath).isReadable()) {
+            m_showedBookmarkErrors.insert(id);
+            auto dialog = CustomMessageBox::selectable(nullptr, tr("Permission Error"),
+                                                       tr("The path selected for %1 is not accessible.\n\n"
+                                                          "Please go to Prism Launcher's settings and reselect it.\n\n"
+                                                          "You should only need to do this once.")
+                                                           .arg(id),
+                                                       QMessageBox::Critical);
+            dialog->exec();
+        }
         return false;
     }
     auto oldBookmark = bookmarkSetting->get().toByteArray();

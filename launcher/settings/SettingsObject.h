@@ -223,6 +223,7 @@ class SettingsObject : public QObject {
     QMap<QString, std::shared_ptr<Setting>> m_settings;
 #ifdef Q_OS_MACOS
     SecurityBookmarkFileAccess m_sandboxedFileAccess;
+    QSet<QString> m_showedBookmarkErrors;
 #endif
 
    protected:

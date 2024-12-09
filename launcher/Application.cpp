@@ -618,7 +618,8 @@ Application::Application(int& argc, char** argv) : QApplication(argc, argv)
         m_settings->registerSetting("InstanceDir", "instances");
         m_settings->registerSetting({ "CentralModsDir", "ModsDir" }, "mods");
         m_settings->registerSetting("IconsDir", "icons");
-        m_settings->registerSetting("DownloadsDir", QStandardPaths::writableLocation(QStandardPaths::DownloadLocation));
+        m_settings->registerSetting("DownloadsDir",
+                                    QFileInfo(QStandardPaths::writableLocation(QStandardPaths::DownloadLocation)).canonicalFilePath());
         m_settings->registerSetting("DownloadsDirWatchRecursive", false);
         m_settings->registerSetting("SkinsDir", "skins");
         m_settings->registerSetting("JavaDir", "java");
