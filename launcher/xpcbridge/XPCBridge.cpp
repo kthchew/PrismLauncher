@@ -18,9 +18,10 @@
 
 #include "XPCBridge.h"
 #include "XPCManager.h"
+#include "ui/dialogs/CustomMessageBox.h"
 
-#include <sys/stat.h>
 #include <sys/syslimits.h>
+#include <sys/un.h>
 
 #include <QLocalSocket>
 #include <QTemporaryDir>
@@ -67,7 +68,18 @@ void XPCBridge::onNewConnection() const
 }
 void XPCBridge::startListening()
 {
+    bool pathTooLong = qEnvironmentVariable("TMPDIR").length() + 1 >= sizeof(sockaddr_un::sun_path);
+    if (pathTooLong) {
+        auto sandboxFailStr = tr("Failed to start services required for sandboxing. Minecraft may fail to start.\n\n"
+            "The data directory path is too long and is currently unsupported by the sandboxed version, which usually results from a long computer username.\n\n"
+            "Please download the unsandboxed version of Prism Launcher.");
+        auto dialog = CustomMessageBox::selectable(nullptr, "Initialization Error", sandboxFailStr, QMessageBox::Critical);
+        dialog->exec();
+        return;
+    }
+
     int maxSocketRange = 9;
+    bool success = false;
     for (int i = 0; i <= maxSocketRange; i++) {
         QString socketPath = QString::number(i);
         QLocalServer::removeServer(socketPath);
@@ -77,7 +89,15 @@ void XPCBridge::startListening()
         } else {
             qDebug() << "XPC Bridge listening on socket at " << server->fullServerName();
             connect(server, &QLocalServer::newConnection, this, &XPCBridge::onNewConnection);
+            success = true;
             break;
         }
+    }
+
+    if (!success) {
+        auto sandboxFailStr = tr("Failed to start services required for sandboxing. Minecraft may fail to start.\n\n"
+            "Please close and reopen the launcher. If this issue persists, please try the unsandboxed version of Prism Launcher.");
+        auto dialog = CustomMessageBox::selectable(nullptr, "Initialization Error", sandboxFailStr, QMessageBox::Critical);
+        dialog->exec();
     }
 }
