@@ -53,6 +53,7 @@
 #include "ui/themes/ITheme.h"
 #include "ui/themes/ThemeManager.h"
 #include "updater/ExternalUpdater.h"
+#include "settings/Setting.h"
 
 #include <QApplication>
 #include <QProcess>
@@ -150,6 +151,12 @@ void LauncherPage::on_instDirBrowseBtn_clicked()
     }
 }
 
+void LauncherPage::on_instDirResetBtn_clicked()
+{
+    auto defValue = APPLICATION->settings()->getSetting("InstanceDir")->defValue().toString();
+    ui->instDirTextBox->setText(defValue);
+}
+
 void LauncherPage::on_iconsDirBrowseBtn_clicked()
 {
     QString raw_dir = QFileDialog::getExistingDirectory(this, tr("Icons Folder"), ui->iconsDirTextBox->text());
@@ -159,6 +166,12 @@ void LauncherPage::on_iconsDirBrowseBtn_clicked()
         QString cooked_dir = FS::NormalizePath(raw_dir);
         ui->iconsDirTextBox->setText(cooked_dir);
     }
+}
+
+void LauncherPage::on_iconsDirResetBtn_clicked()
+{
+    auto defValue = APPLICATION->settings()->getSetting("IconsDir")->defValue().toString();
+    ui->iconsDirTextBox->setText(defValue);
 }
 
 void LauncherPage::on_modsDirBrowseBtn_clicked()
@@ -172,6 +185,12 @@ void LauncherPage::on_modsDirBrowseBtn_clicked()
     }
 }
 
+void LauncherPage::on_modsDirResetBtn_clicked()
+{
+    auto defValue = APPLICATION->settings()->getSetting("CentralModsDir")->defValue().toString();
+    ui->modsDirTextBox->setText(defValue);
+}
+
 void LauncherPage::on_downloadsDirBrowseBtn_clicked()
 {
     QString raw_dir = QFileDialog::getExistingDirectory(this, tr("Downloads Folder"), ui->downloadsDirTextBox->text());
@@ -180,6 +199,12 @@ void LauncherPage::on_downloadsDirBrowseBtn_clicked()
         QString cooked_dir = FS::NormalizePath(raw_dir);
         ui->downloadsDirTextBox->setText(cooked_dir);
     }
+}
+
+void LauncherPage::on_downloadsDirResetBtn_clicked()
+{
+    auto defValue = APPLICATION->settings()->getSetting("DownloadsDir")->defValue().toString();
+    ui->downloadsDirTextBox->setText(defValue);
 }
 
 void LauncherPage::on_javaDirBrowseBtn_clicked()
@@ -192,6 +217,12 @@ void LauncherPage::on_javaDirBrowseBtn_clicked()
     }
 }
 
+void LauncherPage::on_javaDirResetBtn_clicked()
+{
+    auto defValue = APPLICATION->settings()->getSetting("JavaDir")->defValue().toString();
+    ui->javaDirTextBox->setText(defValue);
+}
+
 void LauncherPage::on_skinsDirBrowseBtn_clicked()
 {
     QString raw_dir = QFileDialog::getExistingDirectory(this, tr("Skins Folder"), ui->skinsDirTextBox->text());
@@ -201,6 +232,12 @@ void LauncherPage::on_skinsDirBrowseBtn_clicked()
         QString cooked_dir = FS::NormalizePath(raw_dir);
         ui->skinsDirTextBox->setText(cooked_dir);
     }
+}
+
+void LauncherPage::on_skinsDirResetBtn_clicked()
+{
+    auto defValue = APPLICATION->settings()->getSetting("SkinsDir")->defValue().toString();
+    ui->skinsDirTextBox->setText(defValue);
 }
 
 void LauncherPage::on_metadataDisableBtn_clicked()
