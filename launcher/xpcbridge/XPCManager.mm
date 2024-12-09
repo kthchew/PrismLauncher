@@ -16,132 +16,136 @@
  *  along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
+#include <qglobal.h>
+#ifdef Q_OS_MACOS
 #include <Foundation/Foundation.h>
 #include <xpc/xpc.h>
 
 #include "../../xpc/QuarantineRemover/QuarantineRemovalServiceProtocol.h"
 #include "XPCManager.h"
 
-std::pair<bool, std::string> askToRemoveQuarantine(char* path)
+@interface XPCManagerInternal : NSObject
+@property(retain) NSXPCConnection* m_connectionToService;
+@property(retain) id m_proxy;
+
+- (instancetype)init;
+@end
+
+@implementation XPCManagerInternal
+
+- (instancetype)init
+{
+    self = [super init];
+    if (!self) {
+        return nil;
+    }
+
+    _m_connectionToService = [[NSXPCConnection alloc] initWithServiceName:@"org.prismlauncher.PrismLauncher.QuarantineRemovalService"];
+    _m_connectionToService.remoteObjectInterface = [NSXPCInterface interfaceWithProtocol:@protocol(QuarantineRemovalServiceProtocol)];
+    [_m_connectionToService resume];
+
+    return self;
+}
+
+@end
+
+std::pair<bool, std::string> XPCManager::askToRemoveQuarantine(char* path)
 {
     __block std::pair<bool, std::string> result;
     dispatch_group_t syncGroup = dispatch_group_create();
     dispatch_group_enter(syncGroup);
-
-    NSXPCConnection* _connectionToService =
-        [[NSXPCConnection alloc] initWithServiceName:@"org.prismlauncher.PrismLauncher.QuarantineRemovalService"];
-    _connectionToService.remoteObjectInterface = [NSXPCInterface interfaceWithProtocol:@protocol(QuarantineRemovalServiceProtocol)];
-    [_connectionToService resume];
-
-    NSString* pathStr = [NSString stringWithUTF8String:path];
     dispatch_time_t waitTime = dispatch_time(DISPATCH_TIME_NOW, (int64_t)(NSEC_PER_SEC * 5));
 
+    NSString* pathStr = [NSString stringWithUTF8String:path];
     NSLog(@"Asking to remove quarantine from file at path: %@", pathStr);
-    id conn = [_connectionToService remoteObjectProxyWithErrorHandler:^(NSError* _Nonnull error) {
+    id proxy = [[m_internal m_connectionToService] remoteObjectProxyWithErrorHandler:^(NSError* _Nonnull error) {
       NSLog(@"Error occurred while contacting XPC service: %@", error);
       result = std::make_pair(false, std::string(path));
       dispatch_group_leave(syncGroup);
     }];
-    [conn removeQuarantineFromFileAt:pathStr
-                           withReply:^(BOOL* ok, NSString* url) {
-                             NSLog(@"Received response from XPC service: %d, %@", *ok, url);
-                             result = std::make_pair(*ok, std::string([url UTF8String]));
-                             dispatch_group_leave(syncGroup);
-                           }];
+    [proxy removeQuarantineFromFileAt:pathStr
+                            withReply:^(BOOL* ok, NSString* url) {
+                              NSLog(@"Received response from XPC service: %d, %@", *ok, url);
+                              result = std::make_pair(*ok, std::string([url UTF8String]));
+                              dispatch_group_leave(syncGroup);
+                            }];
 
     // LWJGL 2 may load openal.dylib, and for... reasons... that load isn't intercepted, so just hardcode that case here preemptively
     if ([pathStr hasSuffix:@"liblwjgl.dylib"]) {
         NSLog(@"Asking to remove quarantine from file at path (LWJGL 2 workaround): %@", pathStr);
         dispatch_group_enter(syncGroup);
-        [conn removeQuarantineFromFileAt:[pathStr stringByReplacingOccurrencesOfString:@"liblwjgl.dylib" withString:@"openal.dylib"]
-                               withReply:^(BOOL* ok, NSString* url) {
-                                 NSLog(@"Received response from XPC service: %d, %@", *ok, url);
-                                 dispatch_group_leave(syncGroup);
-                               }];
+        [proxy removeQuarantineFromFileAt:[pathStr stringByReplacingOccurrencesOfString:@"liblwjgl.dylib" withString:@"openal.dylib"]
+                                withReply:^(BOOL* ok, NSString* url) {
+                                  NSLog(@"Received response from XPC service: %d, %@", *ok, url);
+                                  dispatch_group_leave(syncGroup);
+                                }];
     }
 
     dispatch_group_wait(syncGroup, waitTime);
     return result;
 }
 
-bool removeQuarantineFromMojangJavaDirectory(NSString* path, NSURL* manifestURL)
+bool XPCManager::removeQuarantineFromMojangJavaDirectory(NSString* path, NSURL* manifestURL)
 {
-    __block bool result;
+    __block bool result = false;
     dispatch_group_t syncGroup = dispatch_group_create();
     dispatch_group_enter(syncGroup);
-
-    NSXPCConnection* _connectionToService =
-        [[NSXPCConnection alloc] initWithServiceName:@"org.prismlauncher.PrismLauncher.QuarantineRemovalService"];
-    _connectionToService.remoteObjectInterface = [NSXPCInterface interfaceWithProtocol:@protocol(QuarantineRemovalServiceProtocol)];
-    [_connectionToService resume];
-
     dispatch_time_t waitTime = dispatch_time(DISPATCH_TIME_NOW, (int64_t)(NSEC_PER_SEC * 5));
 
-    id conn = [_connectionToService remoteObjectProxyWithErrorHandler:^(NSError* _Nonnull error) {
+    id proxy = [[m_internal m_connectionToService] remoteObjectProxyWithErrorHandler:^(NSError* _Nonnull error) {
       NSLog(@"Error occurred while contacting XPC service: %@", error);
       result = false;
       dispatch_group_leave(syncGroup);
     }];
-    [conn removeQuarantineRecursivelyFromJavaInstallAt:path
-                              downloadedFromManifestAt:manifestURL
-                                             withReply:^(BOOL* ok) {
-                                               NSLog(@"Received response from XPC service: %d", *ok);
-                                               result = *ok;
-                                               dispatch_group_leave(syncGroup);
-                                             }];
+    [proxy removeQuarantineRecursivelyFromJavaInstallAt:path
+                               downloadedFromManifestAt:manifestURL
+                                              withReply:^(BOOL* ok) {
+                                                NSLog(@"Received response from XPC service: %d", *ok);
+                                                result = *ok;
+                                                dispatch_group_leave(syncGroup);
+                                              }];
 
     dispatch_group_wait(syncGroup, waitTime);
     return result;
 }
 
-bool applyDownloadQuarantineToDirectory(NSString* path)
+bool XPCManager::applyDownloadQuarantineToDirectory(NSString* path)
 {
-    __block bool result;
+    __block bool result = false;
     dispatch_group_t syncGroup = dispatch_group_create();
     dispatch_group_enter(syncGroup);
+    dispatch_time_t waitTime = dispatch_time(DISPATCH_TIME_NOW, (int64_t)(NSEC_PER_SEC * 10));
 
-    NSXPCConnection* _connectionToService =
-        [[NSXPCConnection alloc] initWithServiceName:@"org.prismlauncher.PrismLauncher.QuarantineRemovalService"];
-    _connectionToService.remoteObjectInterface = [NSXPCInterface interfaceWithProtocol:@protocol(QuarantineRemovalServiceProtocol)];
-    [_connectionToService resume];
-
-    dispatch_time_t waitTime = dispatch_time(DISPATCH_TIME_NOW, (int64_t)(NSEC_PER_SEC * 5));
-
-    id conn = [_connectionToService remoteObjectProxyWithErrorHandler:^(NSError* _Nonnull error) {
+    id proxy = [[m_internal m_connectionToService] remoteObjectProxyWithErrorHandler:^(NSError* _Nonnull error) {
       NSLog(@"Error occurred while contacting XPC service: %@", error);
       result = false;
       dispatch_group_leave(syncGroup);
     }];
-    [conn applyDownloadQuarantineRecursivelyToJavaInstallAt:path
-                                                  withReply:^(BOOL* ok) {
-                                                    NSLog(@"Received response from XPC service: %d", *ok);
-                                                    result = *ok;
-                                                    dispatch_group_leave(syncGroup);
-                                                  }];
+    [proxy applyDownloadQuarantineRecursivelyToJavaInstallAt:path
+                                                   withReply:^(BOOL* ok) {
+                                                     NSLog(@"Received response from XPC service: %d", *ok);
+                                                     result = *ok;
+                                                     dispatch_group_leave(syncGroup);
+                                                   }];
 
     dispatch_group_wait(syncGroup, waitTime);
     return result;
 }
 
-QString getUnsandboxedTemporaryDirectory()
+QString XPCManager::getUnsandboxedTemporaryDirectory()
 {
     __block QString result;
     dispatch_group_t syncGroup = dispatch_group_create();
     dispatch_group_enter(syncGroup);
 
-    NSXPCConnection* _connectionToService =
-        [[NSXPCConnection alloc] initWithServiceName:@"org.prismlauncher.PrismLauncher.QuarantineRemovalService"];
-    _connectionToService.remoteObjectInterface = [NSXPCInterface interfaceWithProtocol:@protocol(QuarantineRemovalServiceProtocol)];
-    [_connectionToService resume];
-
     dispatch_time_t waitTime = dispatch_time(DISPATCH_TIME_NOW, (int64_t)(NSEC_PER_SEC * 5));
 
-    id conn = [_connectionToService remoteObjectProxyWithErrorHandler:^(NSError* _Nonnull error) {
+    id proxy = [[m_internal m_connectionToService] remoteObjectProxyWithErrorHandler:^(NSError* _Nonnull error) {
       NSLog(@"Error occurred while contacting XPC service: %@", error);
       result = "";
       dispatch_group_leave(syncGroup);
     }];
-    [conn retrieveUnsandboxedUserTemporaryDirectoryWithReply:^(NSString* path) {
+    [proxy retrieveUnsandboxedUserTemporaryDirectoryWithReply:^(NSString* path) {
       result = QString::fromNSString(path);
       dispatch_group_leave(syncGroup);
     }];
@@ -149,3 +153,14 @@ QString getUnsandboxedTemporaryDirectory()
     dispatch_group_wait(syncGroup, waitTime);
     return result;
 }
+
+XPCManager::XPCManager()
+{
+    m_internal = [[XPCManagerInternal alloc] init];
+}
+
+XPCManager::~XPCManager()
+{
+    [m_internal release];
+}
+#endif

@@ -16,7 +16,10 @@
  *  along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
+#include <qglobal.h>
+#ifdef Q_OS_MACOS
 #include "XPCBridge.h"
+#include "Application.h"
 #include "XPCManager.h"
 #include "ui/dialogs/CustomMessageBox.h"
 
@@ -26,6 +29,7 @@
 #include <QLocalSocket>
 #include <QTemporaryDir>
 #include <QThread>
+#include <QThreadPool>
 #include <QtCore/QEventLoop>
 
 XPCBridge::XPCBridge()
@@ -57,7 +61,7 @@ void XPCBridge::onNewConnection() const
     clientConnection->waitForReadyRead();
     clientConnection->read(path, sizeof(path));
     path[sizeof(path) - 1] = '\0';
-    std::pair<bool, std::string> res = askToRemoveQuarantine(path);
+    std::pair<bool, std::string> res = APPLICATION->m_xpcManager->askToRemoveQuarantine(path);
     qDebug() << "Got response from XPC:" << (res.first ? "Quarantine removed for" : "Quarantine not removed for") << res.second.c_str();
 
     clientConnection->write(reinterpret_cast<const char*>(&res.first), sizeof(res.first));
@@ -101,3 +105,4 @@ void XPCBridge::startListening()
         dialog->exec();
     }
 }
+#endif

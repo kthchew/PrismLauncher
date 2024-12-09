@@ -51,6 +51,7 @@
 #include "minecraft/launch/MinecraftTarget.h"
 
 class XPCBridge;
+class XPCManager;
 class LaunchController;
 class LocalPeer;
 class InstanceWindow;
@@ -311,6 +312,7 @@ class Application : public QApplication {
     std::unique_ptr<QFile> logFile;
 #if defined(Q_OS_MACOS) && defined(SANDBOX_ENABLED)
     XPCBridge* m_xpcBridge = nullptr;
+    XPCManager* m_xpcManager = nullptr;
 #endif
 
    public:

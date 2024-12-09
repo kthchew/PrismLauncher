@@ -82,7 +82,7 @@ void ArchiveDownloadTask::extractJava(QString input)
             return;
         }
 #if defined(Q_OS_MACOS) && defined(SANDBOX_ENABLED)
-        applyDownloadQuarantineToDirectory(QDir(m_final_path).absolutePath().toNSString());
+        APPLICATION->m_xpcManager->applyDownloadQuarantineToDirectory(QDir(m_final_path).absolutePath().toNSString());
 #endif
         emitSucceeded();
         return;
@@ -93,7 +93,7 @@ void ArchiveDownloadTask::extractJava(QString input)
             return;
         }
 #if defined(Q_OS_MACOS) && defined(SANDBOX_ENABLED)
-        applyDownloadQuarantineToDirectory(QDir(m_final_path).absolutePath().toNSString());
+        APPLICATION->m_xpcManager->applyDownloadQuarantineToDirectory(QDir(m_final_path).absolutePath().toNSString());
 #endif
         emitSucceeded();
         return;
@@ -118,7 +118,7 @@ void ArchiveDownloadTask::extractJava(QString input)
 
         connect(m_task.get(), &Task::succeeded, this, [this] {
 #if defined(Q_OS_MACOS) && defined(SANDBOX_ENABLED)
-            applyDownloadQuarantineToDirectory(QDir(m_final_path).absolutePath().toNSString());
+            APPLICATION->m_xpcManager->applyDownloadQuarantineToDirectory(QDir(m_final_path).absolutePath().toNSString());
 #endif
             emitSucceeded();
         });

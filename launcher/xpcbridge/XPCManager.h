@@ -21,10 +21,18 @@
 #include <string>
 #include <QObject>
 #include <QUrl>
+Q_FORWARD_DECLARE_OBJC_CLASS(XPCManagerInternal);
 
-std::pair<bool, std::string> askToRemoveQuarantine(char* path);
-bool removeQuarantineFromMojangJavaDirectory(NSString* path, NSURL* manifestURL);
-bool applyDownloadQuarantineToDirectory(NSString* path);
-QString getUnsandboxedTemporaryDirectory();
+class XPCManager {
+    XPCManagerInternal* m_internal;
+public:
+    XPCManager();
+    ~XPCManager();
+
+    std::pair<bool, std::string> askToRemoveQuarantine(char* path);
+    bool removeQuarantineFromMojangJavaDirectory(NSString* path, NSURL* manifestURL);
+    bool applyDownloadQuarantineToDirectory(NSString* path);
+    QString getUnsandboxedTemporaryDirectory();
+};
 
 #endif //XPCMANAGER_H

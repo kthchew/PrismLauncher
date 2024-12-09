@@ -1088,10 +1088,11 @@ Application::Application(int& argc, char** argv) : QApplication(argc, argv)
 
 #if defined(Q_OS_MACOS) && defined(SANDBOX_ENABLED)
     m_xpcBridge = new XPCBridge();
+    m_xpcManager = new XPCManager();
 
     // symlink discord IPC socket into the sandbox so the game can access it
     QDir tempDir(qEnvironmentVariable("TMPDIR"));
-    QString unsandboxedTempDir = getUnsandboxedTemporaryDirectory();
+    QString unsandboxedTempDir = APPLICATION->m_xpcManager->getUnsandboxedTemporaryDirectory();
     if (tempDir.exists()) {
         for (int i = 0; i <= 9; i++) {
             QString ipcName = QString("discord-ipc-%1").arg(i);

@@ -135,7 +135,7 @@ void ManifestDownloadTask::downloadJava(const QJsonDocument& doc)
         auto iter = QDirIterator(m_final_path, QDir::Dirs | QDir::NoDotAndDotDot);
         while (iter.hasNext()) {
             QString path = QDir(iter.next()).absolutePath();
-            removeQuarantineFromMojangJavaDirectory(path.toNSString(), m_url.toNSURL());
+            APPLICATION->m_xpcManager->removeQuarantineFromMojangJavaDirectory(path.toNSString(), m_url.toNSURL());
         }
 #endif
         this->emitSucceeded();
