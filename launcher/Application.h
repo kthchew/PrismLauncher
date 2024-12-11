@@ -52,6 +52,7 @@
 
 class XPCBridge;
 class XPCManager;
+class DynamicSandboxException;
 class LaunchController;
 class LocalPeer;
 class InstanceWindow;
@@ -313,6 +314,7 @@ class Application : public QApplication {
 #if defined(Q_OS_MACOS) && defined(SANDBOX_ENABLED)
     XPCBridge* m_xpcBridge = nullptr;
     XPCManager* m_xpcManager = nullptr;
+    DynamicSandboxException* m_dynamicSandboxExceptions = nullptr;
 #endif
 
    public:

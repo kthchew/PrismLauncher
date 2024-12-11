@@ -148,6 +148,7 @@
 
 #if defined(Q_OS_MAC)
 #if defined(SANDBOX_ENABLED)
+#include "macsandbox/DynamicSandboxException.h"
 #include "xpcbridge/XPCBridge.h"
 #include "xpcbridge/XPCManager.h"
 #endif
@@ -632,6 +633,12 @@ Application::Application(int& argc, char** argv) : QApplication(argc, argv)
         m_settings->registerSetting("DownloadsDirBookmark", "");
         m_settings->registerSetting("SkinsDirBookmark", "");
         m_settings->registerSetting("JavaDirBookmark", "");
+
+#ifdef SANDBOX_ENABLED
+        // Sandbox dynamic exception bookmarks
+        m_settings->registerSetting("ReadWriteDynamicSandboxExceptions", "");
+        m_settings->registerSetting("ReadOnlyDynamicSandboxExceptions", "");
+#endif
 #endif
 
         // Editors
@@ -1089,6 +1096,7 @@ Application::Application(int& argc, char** argv) : QApplication(argc, argv)
 #if defined(Q_OS_MACOS) && defined(SANDBOX_ENABLED)
     m_xpcBridge = new XPCBridge();
     m_xpcManager = new XPCManager();
+    m_dynamicSandboxExceptions = new DynamicSandboxException();
 
     // symlink discord IPC socket into the sandbox so the game can access it
     QDir tempDir(qEnvironmentVariable("TMPDIR"));

@@ -1167,6 +1167,9 @@ if (APPLE)
             xpcbridge/XPCBridge.cpp
             xpcbridge/XPCManager.h
             xpcbridge/XPCManager.mm
+
+            macsandbox/DynamicSandboxException.cpp
+            macsandbox/DynamicSandboxException.h
         )
     endif()
 endif()
