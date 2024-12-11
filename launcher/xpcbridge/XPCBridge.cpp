@@ -55,21 +55,27 @@ void XPCBridge::onNewConnection() const
         return;
     }
 
+    connect(clientConnection, &QLocalSocket::readyRead, [this, clientConnection]() {
+        onReadyRead(clientConnection);
+    });
+}
+
+void XPCBridge::onReadyRead(QLocalSocket* socket) const {
     // get path from client, a char* array that ends with a null byte
     char path[PATH_MAX];
-    // FIXME: can cause a freeze on the main UI thread
-    clientConnection->waitForReadyRead();
-    clientConnection->read(path, sizeof(path));
+
+    socket->read(path, sizeof(path));
     path[sizeof(path) - 1] = '\0';
     std::pair<bool, std::string> res = APPLICATION->m_xpcManager->askToRemoveQuarantine(path);
     qDebug() << "Got response from XPC:" << (res.first ? "Quarantine removed for" : "Quarantine not removed for") << res.second.c_str();
 
-    clientConnection->write(reinterpret_cast<const char*>(&res.first), sizeof(res.first));
-    clientConnection->write(res.second.c_str(), res.second.size() + 1);
-    clientConnection->flush();
-    clientConnection->close();
-    clientConnection->deleteLater();
+    socket->write(reinterpret_cast<const char*>(&res.first), sizeof(res.first));
+    socket->write(res.second.c_str(), res.second.size() + 1);
+    socket->flush();
+    socket->close();
+    socket->deleteLater();
 }
+
 void XPCBridge::startListening()
 {
     bool pathTooLong = qEnvironmentVariable("TMPDIR").length() + 1 >= sizeof(sockaddr_un::sun_path);

@@ -27,6 +27,7 @@ class XPCBridge : public QObject {
 
     void startListening();
 private slots:
+    void onReadyRead(QLocalSocket* socket) const;
     void onNewConnection() const;
 public:
     XPCBridge();
