@@ -97,9 +97,7 @@
 #include <QLibraryInfo>
 #include <QList>
 #include <QNetworkAccessManager>
-#include <QStringList>
-#include <QStyleFactory>
-#include <QTranslator>
+#include <QPushButton>
 #include <QWindow>
 
 #include "InstanceList.h"
@@ -108,8 +106,6 @@
 #include <minecraft/auth/AccountList.h>
 #include "icons/IconList.h"
 #include "net/HttpMetaCache.h"
-
-#include "java/JavaInstallList.h"
 
 #include "updater/ExternalUpdater.h"
 
@@ -507,7 +503,14 @@ Application::Application(int& argc, char** argv) : QApplication(argc, argv)
 
     {
         bool migrated = false;
-
+#if defined(Q_OS_MACOS) && !defined(SANDBOX_ENABLED)
+        if (!migrated)
+            migrated = handleDataMigration(
+                dataPath,
+                FS::PathCombine(QStandardPaths::writableLocation(QStandardPaths::AppDataLocation),
+                                "../../../Containers/org.prismlauncher.PrismLauncher/Data/Library/Application Support/PrismLauncher"),
+                "sandboxed", "prismlauncher.cfg", true);
+#endif
         if (!migrated)
             migrated = handleDataMigration(
                 dataPath, FS::PathCombine(QStandardPaths::writableLocation(QStandardPaths::AppDataLocation), "../../PolyMC"), "PolyMC",
@@ -1802,7 +1805,8 @@ QString Application::getUserAgentUncached()
 bool Application::handleDataMigration(const QString& currentData,
                                       const QString& oldData,
                                       const QString& name,
-                                      const QString& configFile) const
+                                      const QString& configFile,
+                                      bool fromAlternateVersion) const
 {
     QString nomigratePath = FS::PathCombine(currentData, name + "_nomigrate.txt");
     QStringList configPaths = { FS::PathCombine(oldData, configFile), FS::PathCombine(oldData, BuildConfig.LAUNCHER_CONFIGFILE) };
@@ -1823,7 +1827,15 @@ bool Application::handleDataMigration(const QString& currentData,
     QString message;
     bool currentExists = QFileInfo::exists(FS::PathCombine(currentData, BuildConfig.LAUNCHER_CONFIGFILE));
 
-    if (currentExists) {
+    if (fromAlternateVersion && currentExists) {
+        return false;
+    }
+
+    if (fromAlternateVersion && !currentExists) {
+        message = tr("It looks like you've used the %1 version of %2 before. Do you want to copy the data from the %1 version, share data "
+                     "between them, or start this version fresh while leaving that data untouched?")
+                      .arg(name, BuildConfig.LAUNCHER_DISPLAYNAME);
+    } else if (currentExists) {
         message = tr("Old data from %1 was found, but you already have existing data for %2. Sadly you will need to migrate yourself. Do "
                      "you want to be reminded of the pending data migration next time you start %2?")
                       .arg(name, BuildConfig.LAUNCHER_DISPLAYNAME);
@@ -1839,19 +1851,46 @@ bool Application::handleDataMigration(const QString& currentData,
         }
     }
 
-    QMessageBox::StandardButton askMoveDialogue =
-        QMessageBox::question(nullptr, BuildConfig.LAUNCHER_DISPLAYNAME, message, QMessageBox::Yes | QMessageBox::No, QMessageBox::Yes);
-
     auto setDoNotMigrate = [&nomigratePath] {
         QFile file(nomigratePath);
         file.open(QIODevice::WriteOnly);
     };
 
-    // create no-migrate file if user doesn't want to migrate
-    if (askMoveDialogue != QMessageBox::Yes) {
-        qDebug() << "<> Migration declined for" << name;
-        setDoNotMigrate();
-        return currentExists;  // cancel further migrations, if we already have a data directory
+    if (fromAlternateVersion) {
+        QMessageBox question(QMessageBox::Question, BuildConfig.LAUNCHER_DISPLAYNAME, message);
+        QPushButton* copyBtn = question.addButton(tr("Copy Data"), QMessageBox::YesRole);
+        QPushButton* shareBtn = question.addButton(tr("Share Data"), QMessageBox::AcceptRole);
+        QPushButton* noBtn = question.addButton(tr("Start Fresh"), QMessageBox::RejectRole);
+
+        question.setDefaultButton(copyBtn);
+
+        question.exec();
+
+        if (question.clickedButton() == copyBtn) {
+            qDebug() << "<> Copying data from" << name << BuildConfig.LAUNCHER_DISPLAYNAME;
+        } else if (question.clickedButton() == shareBtn) {
+            qDebug() << "<> Sharing data between" << name << BuildConfig.LAUNCHER_DISPLAYNAME;
+            std::filesystem::rename(currentData.toStdString(), currentData.toStdString() + " (Before Migration)");
+            std::filesystem::create_directory_symlink(oldData.toStdString(), currentData.toStdString());
+            QProcess::startDetached(arguments()[0], {});
+            // don't use Qt exit, as we want to exit immediately
+            std::exit(0);
+            return currentExists;
+        } else {
+            qDebug() << "<> Ignoring data from" << name << "version";
+            setDoNotMigrate();
+            return currentExists;
+        }
+    } else {
+        QMessageBox::StandardButton askMoveDialogue =
+            QMessageBox::question(nullptr, BuildConfig.LAUNCHER_DISPLAYNAME, message, QMessageBox::Yes | QMessageBox::No, QMessageBox::Yes);
+
+        // create no-migrate file if user doesn't want to migrate
+        if (askMoveDialogue != QMessageBox::Yes) {
+            qDebug() << "<> Migration declined for" << name;
+            setDoNotMigrate();
+            return currentExists;  // cancel further migrations, if we already have a data directory
+        }
     }
 
     if (!currentExists) {

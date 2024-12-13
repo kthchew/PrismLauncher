@@ -224,7 +224,7 @@ class Application : public QApplication {
     void setupWizardFinished(int status);
 
    private:
-    bool handleDataMigration(const QString& currentData, const QString& oldData, const QString& name, const QString& configFile) const;
+    bool handleDataMigration(const QString& currentData, const QString& oldData, const QString& name, const QString& configFile, bool fromAlternateVersion = false) const;
     bool createSetupWizard();
     void performMainStartupAction();
 
