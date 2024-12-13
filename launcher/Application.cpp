@@ -1843,11 +1843,12 @@ QString Application::getUserAgentUncached()
     return BuildConfig.USER_AGENT_UNCACHED;
 }
 
-bool Application::handleDataMigration(const QString& currentData,
-                                      const QString& oldData,
-                                      const QString& name,
-                                      const QString& configFile) const
+bool Application::handleDataMigration(const QString& currentData, QString oldData, const QString& name, const QString& configFile) const
 {
+#if defined(Q_OS_MACOS) && defined(SANDBOX_ENABLED)
+    // other programs' data are not in the sandbox container
+    oldData.remove("/Containers/org.prismlauncher.PrismLauncher/Data/Library");
+#endif
     QString nomigratePath = FS::PathCombine(currentData, name + "_nomigrate.txt");
     QStringList configPaths = { FS::PathCombine(oldData, configFile), FS::PathCombine(oldData, BuildConfig.LAUNCHER_CONFIGFILE) };
 
