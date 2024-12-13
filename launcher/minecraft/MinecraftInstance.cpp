@@ -561,6 +561,10 @@ QMap<QString, QString> MinecraftInstance::getVariables()
     dlopenDir.cdUp();
     dlopenDir.cd("Frameworks");
     QString dlopenPath = dlopenDir.filePath("libdlopen_hook.dylib");
+    QString steamLibraries = qEnvironmentVariable("STEAM_DYLD_INSERT_LIBRARIES");
+    if (!steamLibraries.isEmpty()) {
+        dlopenPath += ":" + steamLibraries;
+    }
     out.insert("DYLD_INSERT_LIBRARIES", dlopenPath);
     out.insert("XPC_MIDDLEMAN_SOCKET", APPLICATION->m_xpcBridge->getSocketPath());
 #endif
