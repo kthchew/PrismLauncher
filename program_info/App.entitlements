@@ -46,6 +46,10 @@
     <array>
         <string>(allow process-exec (regex #".*/Contents/Home/bin/.*$"))</string>
         <string>(allow process-exec (regex #".*/Contents/Home/lib/.*$"))</string>
+        <string>(allow file-read* (regex #".*/[^/]*(jdk|jre|java)[^/]*/Contents/_CodeSignature/.*"))</string>
+        <string>(allow file-read* (regex #".*/[^/]*(jdk|jre|java)[^/]*/Contents/Home/.*"))</string>
+        <string>(allow file-read* (regex #".*/[^/]*(jdk|jre|java)[^/]*/Contents/MacOS/.*"))</string>
+        <string>(allow file-read* (regex #".*/[^/]*(jdk|jre|java)[^/]*/Contents/Info.plist"))</string>
         <string>(allow network-outbound (regex #"^/private/var/folders/.*/discord-ipc-[0-9]$"))</string>
     </array>
 </dict>
