@@ -41,6 +41,7 @@ configure_file(org.prismlauncher.PrismLauncher.desktop.in org.prismlauncher.Pris
 configure_file(org.prismlauncher.PrismLauncher.metainfo.xml.in org.prismlauncher.PrismLauncher.metainfo.xml)
 configure_file(prismlauncher.rc.in prismlauncher.rc @ONLY)
 configure_file(prismlauncher.manifest.in prismlauncher.manifest @ONLY)
+configure_file(container-migration.plist.in container-migration.plist @ONLY)
 configure_file(App.entitlements App.entitlements @ONLY)
 configure_file(AppNoSandbox.entitlements AppNoSandbox.entitlements @ONLY)
 configure_file(prismlauncher.ico prismlauncher.ico COPYONLY)

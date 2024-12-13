@@ -1391,6 +1391,9 @@ if(UNIX AND APPLE AND Launcher_ENABLE_SANDBOX)
     install(TARGETS QuarantineRemovalService
         BUNDLE DESTINATION "${XPC_DEST_DIR}" COMPONENT Runtime
     )
+    install(FILES ${CMAKE_CURRENT_BINARY_DIR}/../program_info/container-migration.plist
+        DESTINATION "${RESOURCES_DEST_DIR}" COMPONENT Runtime
+    )
 endif()
 
 if(Launcher_BUILD_UPDATER)
