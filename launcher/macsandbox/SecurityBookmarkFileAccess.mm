@@ -163,8 +163,12 @@ void SecurityBookmarkFileAccess::stopUsingSecurityScopedBookmark(QByteArray& boo
 bool SecurityBookmarkFileAccess::isAccessingPath(const QString& path)
 {
     NSData* bookmark = [m_paths objectForKey:path.toNSString()];
-    if (!bookmark)
+    if (!bookmark && path.endsWith('/')) {
+        bookmark = [m_paths objectForKey:path.left(path.length() - 1).toNSString()];
+    }
+    if (!bookmark) {
         return false;
+    }
     NSURL* url = [m_bookmarks objectForKey:bookmark];
     return [m_activeURLs containsObject:url];
 }

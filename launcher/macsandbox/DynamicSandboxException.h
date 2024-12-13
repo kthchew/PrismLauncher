@@ -20,11 +20,14 @@
 #define LAUNCHER_DYNAMICSANDBOXEXCEPTION_H
 
 #include <QList>
+#include <QObject>
 class QUrl;
 class QString;
 class SecurityBookmarkFileAccess;
 
-class DynamicSandboxException {
+class DynamicSandboxException : public QObject {
+    Q_OBJECT
+
     SecurityBookmarkFileAccess* m_readWriteBookmarkAccess;
     SecurityBookmarkFileAccess* m_readOnlyBookmarkAccess;
 
@@ -37,8 +40,11 @@ class DynamicSandboxException {
     [[nodiscard]] QList<QUrl> readWriteExceptionURLs() const;
     [[nodiscard]] QList<QUrl> readOnlyExceptionURLs() const;
 
+   public slots:
     bool addReadWriteException(const QString& path);
+    bool addReadWriteExceptions(const QList<QUrl>& url);
     bool addReadOnlyException(const QString& path);
+    bool addReadOnlyExceptions(const QList<QUrl>& url);
     void removeReadWriteException(int index);
     void removeReadOnlyException(int index);
 };

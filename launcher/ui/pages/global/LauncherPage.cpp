@@ -41,20 +41,20 @@
 
 #include <QDir>
 #include <QFileDialog>
+#include <QFileIconProvider>
 #include <QMenuBar>
 #include <QMessageBox>
 #include <QTextCharFormat>
-#include <QFileIconProvider>
 
 #include <FileSystem.h>
 #include "Application.h"
 #include "BuildConfig.h"
 #include "DesktopServices.h"
+#include "settings/Setting.h"
 #include "settings/SettingsObject.h"
 #include "ui/themes/ITheme.h"
 #include "ui/themes/ThemeManager.h"
 #include "updater/ExternalUpdater.h"
-#include "settings/Setting.h"
 
 #include <QApplication>
 
@@ -100,6 +100,13 @@ LauncherPage::LauncherPage(QWidget* parent) : QWidget(parent), ui(new Ui::Launch
     connect(ui->themeCustomizationWidget, &ThemeCustomizationWidget::currentWidgetThemeChanged, this, &LauncherPage::refreshFontPreview);
 
     connect(ui->themeCustomizationWidget, &ThemeCustomizationWidget::currentCatChanged, APPLICATION, &Application::currentCatChanged);
+
+#if defined(Q_OS_MACOS) && defined(SANDBOX_ENABLED)
+    connect(ui->readWriteList, &DropList::droppedURLs, APPLICATION->m_dynamicSandboxExceptions, &DynamicSandboxException::addReadWriteExceptions);
+    connect(ui->readOnlyList, &DropList::droppedURLs, APPLICATION->m_dynamicSandboxExceptions, &DynamicSandboxException::addReadOnlyExceptions);
+    connect(ui->readWriteList, &DropList::droppedURLs, this, &LauncherPage::loadSettings);
+    connect(ui->readOnlyList, &DropList::droppedURLs, this, &LauncherPage::loadSettings);
+#endif
 }
 
 LauncherPage::~LauncherPage()

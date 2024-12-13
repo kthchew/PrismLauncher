@@ -796,7 +796,7 @@
            </widget>
           </item>
           <item>
-           <widget class="QListWidget" name="readWriteList">
+           <widget class="DropList" name="readWriteList">
             <property name="sizePolicy">
              <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
               <horstretch>0</horstretch>
@@ -868,7 +868,7 @@
            </widget>
           </item>
           <item>
-           <widget class="QListWidget" name="readOnlyList"/>
+           <widget class="DropList" name="readOnlyList"/>
           </item>
           <item>
            <layout class="QHBoxLayout" name="horizontalLayout_2">
@@ -929,6 +929,11 @@
    <extends>QWidget</extends>
    <header>ui/widgets/ThemeCustomizationWidget.h</header>
    <container>1</container>
+  </customwidget>
+  <customwidget>
+   <class>DropList</class>
+   <extends>QListWidget</extends>
+   <header>ui/widgets/DropList.h</header>
   </customwidget>
  </customwidgets>
  <tabstops>

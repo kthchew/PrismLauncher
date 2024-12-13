@@ -118,3 +118,29 @@ void DynamicSandboxException::removeReadOnlyException(int index) {
     readOnlyBookmarks.removeAt(index);
     APPLICATION->settings()->set("ReadOnlyDynamicSandboxExceptions", readOnlyBookmarks);
 }
+
+bool DynamicSandboxException::addReadWriteExceptions(const QList<QUrl>& url)
+{
+    bool success = true;
+    for (const QUrl& u : url) {
+        if (!u.isLocalFile()) {
+            continue;
+        }
+        QString path = u.toLocalFile();
+        success = success && addReadWriteException(path);
+    }
+    return success;
+}
+
+bool DynamicSandboxException::addReadOnlyExceptions(const QList<QUrl>& url)
+{
+    bool success = true;
+    for (const QUrl& u : url) {
+        if (!u.isLocalFile()) {
+            continue;
+        }
+        QString path = u.toLocalFile();
+        success = success && addReadOnlyException(path);
+    }
+    return success;
+}
