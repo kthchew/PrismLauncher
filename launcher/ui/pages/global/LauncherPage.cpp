@@ -42,6 +42,7 @@
 #include <QDir>
 #include <QFileDialog>
 #include <QFileIconProvider>
+#include <QKeyEvent>
 #include <QMenuBar>
 #include <QMessageBox>
 #include <QTextCharFormat>
@@ -106,6 +107,9 @@ LauncherPage::LauncherPage(QWidget* parent) : QWidget(parent), ui(new Ui::Launch
     connect(ui->readOnlyList, &DropList::droppedURLs, APPLICATION->m_dynamicSandboxExceptions, &DynamicSandboxException::addReadOnlyExceptions);
     connect(ui->readWriteList, &DropList::droppedURLs, this, &LauncherPage::loadSettings);
     connect(ui->readOnlyList, &DropList::droppedURLs, this, &LauncherPage::loadSettings);
+
+    connect(ui->readWriteList, &DropList::deleteKeyPressed, this, &LauncherPage::on_readWriteRemoveBtn_clicked);
+    connect(ui->readOnlyList, &DropList::deleteKeyPressed, this, &LauncherPage::on_readOnlyRemoveBtn_clicked);
 #endif
 }
 
