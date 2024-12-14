@@ -103,8 +103,8 @@ LauncherPage::LauncherPage(QWidget* parent) : QWidget(parent), ui(new Ui::Launch
     connect(ui->themeCustomizationWidget, &ThemeCustomizationWidget::currentCatChanged, APPLICATION, &Application::currentCatChanged);
 
 #if defined(Q_OS_MACOS) && defined(SANDBOX_ENABLED)
-    connect(ui->readWriteList, &DropList::droppedURLs, APPLICATION->m_dynamicSandboxExceptions, &DynamicSandboxException::addReadWriteExceptions);
-    connect(ui->readOnlyList, &DropList::droppedURLs, APPLICATION->m_dynamicSandboxExceptions, &DynamicSandboxException::addReadOnlyExceptions);
+    connect(ui->readWriteList, &DropList::droppedURLs, APPLICATION->m_dynamicSandboxExceptions.get(), &DynamicSandboxException::addReadWriteExceptions);
+    connect(ui->readOnlyList, &DropList::droppedURLs, APPLICATION->m_dynamicSandboxExceptions.get(), &DynamicSandboxException::addReadOnlyExceptions);
     connect(ui->readWriteList, &DropList::droppedURLs, this, &LauncherPage::loadSettings);
     connect(ui->readOnlyList, &DropList::droppedURLs, this, &LauncherPage::loadSettings);
 

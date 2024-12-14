@@ -1,10 +1,10 @@
 #include <dlfcn.h>
+#include <printf.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/socket.h>
 #include <sys/syslimits.h>
 #include <sys/un.h>
-#include <unistd.h>
 
 // See https://github.com/apple-opensource/dyld/blob/e3f88907bebb8421f50f0943595f6874de70ebe0/include/mach-o/dyld.h
 #define DYLD_INTERPOSE(_replacment, _replacee)                                                                            \
@@ -24,32 +24,27 @@ void* dlopen_new(const char* path, int mode)
         strncmp(usr, path, strlen(usr)) == 0) {
         return dlopen(path, mode);
     }
-    // connect to Unix socket with path in the XPC_MIDDLEMAN_SOCKET environment variable
-    const char* socket_path = getenv("XPC_MIDDLEMAN_SOCKET");
-    if (socket_path == NULL) {
+
+    const char* socket_input = getenv("PRISM_XPC_MIDDLEMAN_SOCKET");
+    if (socket_input == NULL || strlen(socket_input) == 0 || socket_input[0] == '-') {
+        printf("[PRISM SANDBOX WORKAROUND] PRISM_XPC_MIDDLEMAN_SOCKET not set, attempting to load library anyway\n");
+        return dlopen(path, mode);
+    }
+    int sock = atoi(socket_input);
+    if (sock <= 0) {
+        printf("[PRISM SANDBOX WORKAROUND] PRISM_XPC_MIDDLEMAN_SOCKET invalid, attempting to load library anyway\n");
         return dlopen(path, mode);
     }
 
-    int sock = socket(AF_UNIX, SOCK_STREAM, 0);
-    struct sockaddr_un addr;
-    addr.sun_family = AF_UNIX;
-    strncpy(addr.sun_path, socket_path, sizeof(addr.sun_path) - 1);
-    addr.sun_path[sizeof(addr.sun_path) - 1] = '\0';
-
-    if (connect(sock, (struct sockaddr*)&addr, sizeof(addr)) == -1) {
-        // failed to connect? just load the library normally
-        return dlopen(path, mode);
-    }
-    if (send(sock, path, strlen(path) + 1, 0) == -1) {
-        close(sock);
-        return dlopen(path, mode);
-    }
     char response[sizeof(bool) + PATH_MAX];
-    if (recv(sock, response, sizeof(response), 0) == -1) {
-        close(sock);
+    if (send(sock, path, strlen(path) + 1, 0) == -1) {
+        printf("[PRISM SANDBOX WORKAROUND] Failed to send library path, attempting to load library anyway\n");
         return dlopen(path, mode);
     }
-    close(sock);
+    if (recv(sock, response, sizeof(response), 0) == -1) {
+        printf("[PRISM SANDBOX WORKAROUND] Failed to receive response from launcher, attempting to load library anyway\n");
+        return dlopen(path, mode);
+    }
 
     return dlopen(path, mode);
 }

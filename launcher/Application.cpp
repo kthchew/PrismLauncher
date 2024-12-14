@@ -1094,9 +1094,8 @@ Application::Application(int& argc, char** argv) : QApplication(argc, argv)
     }
 
 #if defined(Q_OS_MACOS) && defined(SANDBOX_ENABLED)
-    m_xpcBridge = new XPCBridge();
-    m_xpcManager = new XPCManager();
-    m_dynamicSandboxExceptions = new DynamicSandboxException();
+    m_xpcManager.reset(new XPCManager());
+    m_dynamicSandboxExceptions.reset(new DynamicSandboxException());
 
     // symlink discord IPC socket into the sandbox so the game can access it
     QDir tempDir(qEnvironmentVariable("TMPDIR"));

@@ -20,7 +20,7 @@
 #include "Application.h"
 #include "SecurityBookmarkFileAccess.h"
 
-DynamicSandboxException::DynamicSandboxException()
+DynamicSandboxException::DynamicSandboxException(QObject* parent) : QObject(parent)
 {
     m_readWriteBookmarkAccess = new SecurityBookmarkFileAccess(false);
     m_readOnlyBookmarkAccess = new SecurityBookmarkFileAccess(true);

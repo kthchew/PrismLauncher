@@ -34,8 +34,8 @@ class DynamicSandboxException : public QObject {
     [[nodiscard]] QList<QUrl> bookmarkListSettingToURLs(const QString& settingName) const;
 
    public:
-    DynamicSandboxException();
-    ~DynamicSandboxException();
+    explicit DynamicSandboxException(QObject* parent = nullptr);
+    ~DynamicSandboxException() override;
 
     [[nodiscard]] QList<QUrl> readWriteExceptionURLs() const;
     [[nodiscard]] QList<QUrl> readOnlyExceptionURLs() const;

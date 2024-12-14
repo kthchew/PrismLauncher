@@ -18,13 +18,15 @@
 
 #include <qglobal.h>
 #ifdef Q_OS_MACOS
-#include "XPCBridge.h"
 #include "Application.h"
+#include "XPCBridge.h"
 #include "XPCManager.h"
 #include "ui/dialogs/CustomMessageBox.h"
 
+#include <stdio.h>
 #include <sys/syslimits.h>
 #include <sys/un.h>
+#include <unistd.h>
 
 #include <QLocalSocket>
 #include <QTemporaryDir>
@@ -32,83 +34,43 @@
 #include <QThreadPool>
 #include <QtCore/QEventLoop>
 
-XPCBridge::XPCBridge()
+XPCBridge::XPCBridge(QObject* parent) : QObject(parent)
 {
-    server = new QLocalServer();
-    startListening();
+    int sockets[2];
+    if (socketpair(AF_UNIX, SOCK_STREAM, 0, sockets) == -1) {
+        qWarning() << "Failed to create socket pair for XPC bridge";
+        return;
+    }
+    m_launcherSocket = sockets[0];
+    m_gameSocket = sockets[1];
+
+    m_launcherNotifier.reset(new QSocketNotifier(m_launcherSocket, QSocketNotifier::Read, this));
+    connect(m_launcherNotifier.get(), &QSocketNotifier::activated, this, &XPCBridge::onReadyRead);
 }
 XPCBridge::~XPCBridge()
 {
-    server->close();
-    delete server;
+    close(m_launcherSocket);
+    close(m_gameSocket);
 }
 
-QString XPCBridge::getSocketPath() const
+int XPCBridge::getGameSocketDescriptor() const
 {
-    return server->fullServerName();
+    return m_gameSocket;
 }
 
-void XPCBridge::onNewConnection() const
+void XPCBridge::onReadyRead() const
 {
-    QLocalSocket* clientConnection = server->nextPendingConnection();
-    if (!clientConnection) {
-        return;
-    }
-
-    connect(clientConnection, &QLocalSocket::readyRead, [this, clientConnection]() {
-        onReadyRead(clientConnection);
-    });
-}
-
-void XPCBridge::onReadyRead(QLocalSocket* socket) const {
     // get path from client, a char* array that ends with a null byte
     char path[PATH_MAX];
-
-    socket->read(path, sizeof(path));
-    path[sizeof(path) - 1] = '\0';
-    std::pair<bool, std::string> res = APPLICATION->m_xpcManager->askToRemoveQuarantine(path);
-    qDebug() << "Got response from XPC:" << (res.first ? "Quarantine removed for" : "Quarantine not removed for") << res.second.c_str();
-
-    socket->write(reinterpret_cast<const char*>(&res.first), sizeof(res.first));
-    socket->write(res.second.c_str(), res.second.size() + 1);
-    socket->flush();
-    socket->close();
-    socket->deleteLater();
-}
-
-void XPCBridge::startListening()
-{
-    bool pathTooLong = qEnvironmentVariable("TMPDIR").length() + 1 >= sizeof(sockaddr_un::sun_path);
-    if (pathTooLong) {
-        auto sandboxFailStr = tr("Failed to start services required for sandboxing. Minecraft may fail to start.\n\n"
-            "The data directory path is too long and is currently unsupported by the sandboxed version, which usually results from a long computer username.\n\n"
-            "Please download the unsandboxed version of Prism Launcher.");
-        auto dialog = CustomMessageBox::selectable(nullptr, "Initialization Error", sandboxFailStr, QMessageBox::Critical);
-        dialog->exec();
+    ssize_t bytesRead = read(m_launcherSocket, path, sizeof(path) - 1);
+    if (bytesRead == -1) {
+        qWarning() << "Failed to read path from XPC bridge";
         return;
     }
-
-    int maxSocketRange = 9;
-    bool success = false;
-    for (int i = 0; i <= maxSocketRange; i++) {
-        QString socketPath = QString::number(i);
-        QLocalServer::removeServer(socketPath);
-        server->listen(socketPath);
-        if (!server->isListening()) {
-            qWarning() << "XPC Bridge failed to listen on socket at " << socketPath;
-        } else {
-            qDebug() << "XPC Bridge listening on socket at " << server->fullServerName();
-            connect(server, &QLocalServer::newConnection, this, &XPCBridge::onNewConnection);
-            success = true;
-            break;
-        }
-    }
-
-    if (!success) {
-        auto sandboxFailStr = tr("Failed to start services required for sandboxing. Minecraft may fail to start.\n\n"
-            "Please close and reopen the launcher. If this issue persists, please try the unsandboxed version of Prism Launcher.");
-        auto dialog = CustomMessageBox::selectable(nullptr, "Initialization Error", sandboxFailStr, QMessageBox::Critical);
-        dialog->exec();
-    }
+    path[bytesRead] = '\0';
+    std::pair<bool, std::string> res = APPLICATION->m_xpcManager->askToRemoveQuarantine(path);
+    qDebug() << "Got response from XPC:" << (res.first ? "Quarantine removed for" : "Quarantine not removed for") << res.second.c_str();
+    send(m_launcherSocket, &res.first, sizeof(res.first), 0);
+    send(m_launcherSocket, res.second.c_str(), res.second.size() + 1, 0);
 }
 #endif

@@ -90,8 +90,6 @@
 
 #include "tools/BaseProfiler.h"
 
-#include "xpcbridge/XPCBridge.h"
-
 #include <QActionGroup>
 #include <QMainWindow>
 #include <QScreen>
@@ -556,18 +554,6 @@ QMap<QString, QString> MinecraftInstance::getVariables()
     out.insert("INST_JAVA", settings()->get("JavaPath").toString());
     out.insert("INST_JAVA_ARGS", javaArguments().join(' '));
     out.insert("NO_COLOR", "1");
-#if defined(Q_OS_MACOS) && defined(SANDBOX_ENABLED)
-    QDir dlopenDir = QDir(Application::applicationDirPath());
-    dlopenDir.cdUp();
-    dlopenDir.cd("Frameworks");
-    QString dlopenPath = dlopenDir.filePath("libdlopen_hook.dylib");
-    QString steamLibraries = qEnvironmentVariable("STEAM_DYLD_INSERT_LIBRARIES");
-    if (!steamLibraries.isEmpty()) {
-        dlopenPath += ":" + steamLibraries;
-    }
-    out.insert("DYLD_INSERT_LIBRARIES", dlopenPath);
-    out.insert("XPC_MIDDLEMAN_SOCKET", APPLICATION->m_xpcBridge->getSocketPath());
-#endif
     return out;
 }
 
@@ -645,6 +631,17 @@ QProcessEnvironment MinecraftInstance::createLaunchEnvironment()
         env.insert("MESA_LOADER_DRIVER_OVERRIDE", "zink");
         env.insert("GALLIUM_DRIVER", "zink");
     }
+#endif
+#if defined(Q_OS_MACOS) && defined(SANDBOX_ENABLED)
+    QDir dlopenDir = QDir(Application::applicationDirPath());
+    dlopenDir.cdUp();
+    dlopenDir.cd("Frameworks");
+    QString dlopenPath = dlopenDir.filePath("libdlopen_hook.dylib");
+    QString steamLibraries = qEnvironmentVariable("STEAM_DYLD_INSERT_LIBRARIES");
+    if (!steamLibraries.isEmpty()) {
+        dlopenPath += ":" + steamLibraries;
+    }
+    env.insert("DYLD_INSERT_LIBRARIES", dlopenPath);
 #endif
     return env;
 }

@@ -312,9 +312,8 @@ class Application : public QApplication {
     QString m_instanceIdToShowWindowOf;
     std::unique_ptr<QFile> logFile;
 #if defined(Q_OS_MACOS) && defined(SANDBOX_ENABLED)
-    XPCBridge* m_xpcBridge = nullptr;
-    XPCManager* m_xpcManager = nullptr;
-    DynamicSandboxException* m_dynamicSandboxExceptions = nullptr;
+    std::unique_ptr<XPCManager> m_xpcManager;
+    std::unique_ptr<DynamicSandboxException> m_dynamicSandboxExceptions;
 #endif
 
    public:

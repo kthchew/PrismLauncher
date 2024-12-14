@@ -19,22 +19,24 @@
 #ifndef XPCBRIDGE_H
 #define XPCBRIDGE_H
 
+#include <sys/socket.h>
+
 #include <QLocalServer>
+#include <QSocketNotifier>
 
 class XPCBridge : public QObject {
     Q_OBJECT
-    QLocalServer* server;
+    int m_launcherSocket = -1;
+    int m_gameSocket = -1;
 
-    void startListening();
-private slots:
-    void onReadyRead(QLocalSocket* socket) const;
-    void onNewConnection() const;
-public:
-    XPCBridge();
+    std::unique_ptr<QSocketNotifier> m_launcherNotifier = nullptr;
+   private slots:
+    void onReadyRead() const;
+
+   public:
+    XPCBridge(QObject* parent = nullptr);
     ~XPCBridge() override;
-    [[nodiscard]] QString getSocketPath() const;
+    [[nodiscard]] int getGameSocketDescriptor() const;
 };
 
-
-
-#endif //XPCBRIDGE_H
+#endif  // XPCBRIDGE_H
