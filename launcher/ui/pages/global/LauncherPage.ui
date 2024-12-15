@@ -938,15 +938,33 @@
  </customwidgets>
  <tabstops>
   <tabstop>tabWidget</tabstop>
+  <tabstop>scrollArea</tabstop>
   <tabstop>autoUpdateCheckBox</tabstop>
+  <tabstop>updateIntervalSpinBox</tabstop>
   <tabstop>instDirTextBox</tabstop>
   <tabstop>instDirBrowseBtn</tabstop>
   <tabstop>modsDirTextBox</tabstop>
   <tabstop>modsDirBrowseBtn</tabstop>
   <tabstop>iconsDirTextBox</tabstop>
   <tabstop>iconsDirBrowseBtn</tabstop>
+  <tabstop>javaDirTextBox</tabstop>
+  <tabstop>javaDirBrowseBtn</tabstop>
+  <tabstop>skinsDirTextBox</tabstop>
+  <tabstop>skinsDirBrowseBtn</tabstop>
+  <tabstop>downloadsDirTextBox</tabstop>
+  <tabstop>downloadsDirBrowseBtn</tabstop>
+  <tabstop>downloadsDirWatchRecursiveCheckBox</tabstop>
+  <tabstop>metadataDisableBtn</tabstop>
+  <tabstop>dependenciesDisableBtn</tabstop>
+  <tabstop>skipModpackUpdatePromptBtn</tabstop>
+  <tabstop>numberOfConcurrentTasksSpinBox</tabstop>
+  <tabstop>numberOfConcurrentDownloadsSpinBox</tabstop>
+  <tabstop>numberOfManualRetriesSpinBox</tabstop>
+  <tabstop>timeoutSecondsSpinBox</tabstop>
   <tabstop>sortLastLaunchedBtn</tabstop>
   <tabstop>sortByNameBtn</tabstop>
+  <tabstop>catOpacitySpinBox</tabstop>
+  <tabstop>preferMenuBarCheckBox</tabstop>
   <tabstop>showConsoleCheck</tabstop>
   <tabstop>autoCloseConsoleCheck</tabstop>
   <tabstop>showConsoleErrorCheck</tabstop>

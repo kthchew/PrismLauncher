@@ -44,6 +44,8 @@ configure_file(prismlauncher.manifest.in prismlauncher.manifest @ONLY)
 configure_file(container-migration.plist.in container-migration.plist @ONLY)
 configure_file(App.entitlements App.entitlements @ONLY)
 configure_file(AppNoSandbox.entitlements AppNoSandbox.entitlements @ONLY)
+configure_file(AdhocSignedApp.entitlements AdhocSignedApp.entitlements @ONLY)
+configure_file(AdhocAppNoSandbox.entitlements AdhocAppNoSandbox.entitlements @ONLY)
 configure_file(prismlauncher.ico prismlauncher.ico COPYONLY)
 
 if(MSVC)
