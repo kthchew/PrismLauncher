@@ -59,10 +59,6 @@ BOOL shouldRemoveQuarantine(NSURL* url)
     BOOL result = NO;
     NSURL* url = [NSURL fileURLWithPath:path];
 
-    if (![url.path hasPrefix:NSHomeDirectory()]) {
-        reply(&result, path);
-    }
-
     // Copy the file to a temporary location outside the sandbox, so the sandboxed code can't interfere with the below operations (for
     // example, trying to set the executable bit).
     NSError* err = nil;
