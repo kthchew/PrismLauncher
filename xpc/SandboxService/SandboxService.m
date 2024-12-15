@@ -16,12 +16,12 @@
  *  along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-#import "QuarantineRemovalService.h"
+#import "SandboxService.h"
 #import <AppKit/AppKit.h>
 #import <CommonCrypto/CommonDigest.h>
 #import <UniformTypeIdentifiers/UniformTypeIdentifiers.h>
 
-@interface QuarantineRemovalService (Private)
+@interface SandboxService (Private)
 - (BOOL)removeQuarantineForFileAt:(NSURL*)fileURL;
 - (BOOL)verifyJavaRuntimeAt:(NSURL*)url againstFileManifest:(NSDictionary*)files;
 @end
@@ -53,7 +53,7 @@ BOOL shouldRemoveQuarantine(NSURL* url)
     return [allowedExtensions containsObject:url.pathExtension];
 }
 
-@implementation QuarantineRemovalService
+@implementation SandboxService
 - (void)removeQuarantineFromFileAt:(NSString*)path withReply:(void (^)(BOOL*, NSString*))reply
 {
     BOOL result = NO;
@@ -265,7 +265,7 @@ BOOL shouldRemoveQuarantine(NSURL* url)
 
 @end
 
-@implementation QuarantineRemovalService (Private)
+@implementation SandboxService (Private)
 
 - (BOOL)removeQuarantineForFileAt:(NSURL*)fileURL
 {

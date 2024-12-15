@@ -1395,7 +1395,7 @@ if(UNIX AND APPLE AND Launcher_ENABLE_SANDBOX)
     install(TARGETS dlopen_hook
         LIBRARY DESTINATION "${FRAMEWORK_DEST_DIR}" COMPONENT Runtime
     )
-    install(TARGETS QuarantineRemovalService
+    install(TARGETS SandboxService
         BUNDLE DESTINATION "${XPC_DEST_DIR}" COMPONENT Runtime
     )
     install(FILES ${CMAKE_CURRENT_BINARY_DIR}/../program_info/container-migration.plist

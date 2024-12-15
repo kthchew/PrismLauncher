@@ -18,7 +18,7 @@
 
 #import <Foundation/Foundation.h>
 
-@protocol QuarantineRemovalServiceProtocol
+@protocol SandboxServiceProtocol
 /// Ask the service to remove quarantine from the file at `path`.
 ///
 /// Some metadata of the file may be modified to prevent a sandbox escape. For example, the executable bit on a file may be removed.

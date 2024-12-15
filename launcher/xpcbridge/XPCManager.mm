@@ -21,7 +21,7 @@
 #include <Foundation/Foundation.h>
 #include <xpc/xpc.h>
 
-#include "../../xpc/QuarantineRemover/QuarantineRemovalServiceProtocol.h"
+#include "../../xpc/SandboxService/SandboxServiceProtocol.h"
 #include "XPCManager.h"
 
 @interface XPCManagerInternal : NSObject
@@ -40,8 +40,8 @@
         return nil;
     }
 
-    _m_connectionToService = [[NSXPCConnection alloc] initWithServiceName:@"org.prismlauncher.PrismLauncher.QuarantineRemovalService"];
-    _m_connectionToService.remoteObjectInterface = [NSXPCInterface interfaceWithProtocol:@protocol(QuarantineRemovalServiceProtocol)];
+    _m_connectionToService = [[NSXPCConnection alloc] initWithServiceName:@"org.prismlauncher.PrismLauncher.PrismSandboxService"];
+    _m_connectionToService.remoteObjectInterface = [NSXPCInterface interfaceWithProtocol:@protocol(SandboxServiceProtocol)];
     [_m_connectionToService resume];
 
     return self;
