@@ -293,30 +293,36 @@ BOOL shouldRemoveQuarantine(NSURL* url)
 - (BOOL)verifyJavaRuntimeAt:(NSURL*)url againstFileManifest:(NSDictionary*)files
 {
     // Check if there are any files in the directory that are not listed in the manifest - these might be malicious.
-    NSDirectoryEnumerator* enumerator = [[NSFileManager defaultManager] enumeratorAtURL:url
-                                                             includingPropertiesForKeys:@[ NSURLIsRegularFileKey ]
-                                                                                options:0
-                                                                           errorHandler:nil];
+    NSDirectoryEnumerator* enumerator =
+        [[NSFileManager defaultManager] enumeratorAtURL:url
+                             includingPropertiesForKeys:@[ NSURLIsRegularFileKey, NSURLIsSymbolicLinkKey, NSURLIsDirectoryKey ]
+                                                options:0
+                                           errorHandler:nil];
+    NSMutableSet<NSString*>* verifiedFiles = [NSMutableSet setWithCapacity:[files count]];
     for (NSURL* fileURL in enumerator) {
         NSString* relativePath =
-            [[[fileURL URLByResolvingSymlinksInPath] path] substringFromIndex:[[url URLByResolvingSymlinksInPath] path].length + 1];
-        if (!files[relativePath]) {
-            NSLog(@"File not listed in manifest: %@", fileURL.path);
+            [[[fileURL URLByStandardizingPath] path] substringFromIndex:[[url URLByStandardizingPath] path].length + 1];
+        NSDictionary* fileInfo = files[relativePath];
+        if (!fileInfo) {
+            NSLog(@"Java runtime not verified due to extraneous file not listed in manifest: %@ (%@)", fileURL.path, relativePath);
             return NO;
         }
-    }
 
-    for (NSString* relativePath in files) {
-        NSDictionary* fileInfo = files[relativePath];
         if ([fileInfo[@"type"] isEqualToString:@"file"]) {
+            NSNumber* isRegularFile;
+            if (![fileURL getResourceValue:&isRegularFile forKey:NSURLIsRegularFileKey error:nil] || ![isRegularFile boolValue]) {
+                NSLog(@"Java runtime not verified as %@ (%@) is not a regular file", fileURL.path, relativePath);
+                return NO;
+            }
+
             NSString* expectedChecksum = fileInfo[@"downloads"][@"raw"][@"sha1"];
-            NSData* fileData = [NSData dataWithContentsOfURL:[url URLByAppendingPathComponent:relativePath]];
+            NSData* fileData = [NSData dataWithContentsOfURL:fileURL];
             if (!fileData) {
-                NSLog(@"Failed to read file: %@", relativePath);
+                NSLog(@"Java runtime not verified due to failure to read file: %@ (%@)", fileURL.path, relativePath);
                 return NO;
             }
             if ([fileData length] != [fileInfo[@"downloads"][@"raw"][@"size"] unsignedLongLongValue]) {
-                NSLog(@"Size mismatch for file: %@", relativePath);
+                NSLog(@"Java runtime not verified due to size mismatch for file: %@ (%@)", fileURL.path, relativePath);
                 return NO;
             }
             unsigned char actualChecksumData[CC_SHA1_DIGEST_LENGTH];
@@ -327,9 +333,42 @@ BOOL shouldRemoveQuarantine(NSURL* url)
             }
 
             if (![expectedChecksum isEqualToString:actualChecksum]) {
-                NSLog(@"Checksum mismatch for file: %@", relativePath);
+                NSLog(@"Java runtime not verified due to checksum mismatch for file: %@ (%@)", fileURL.path, relativePath);
                 return NO;
             }
+        } else if ([fileInfo[@"type"] isEqualToString:@"link"]) {
+            NSNumber* isSymbolicLink;
+            if (![fileURL getResourceValue:&isSymbolicLink forKey:NSURLIsSymbolicLinkKey error:nil] || ![isSymbolicLink boolValue]) {
+                NSLog(@"Java runtime not verified as %@ (%@) is not a symbolic link", fileURL.path, relativePath);
+                return NO;
+            }
+
+            NSURL* expectedDestination =
+                [[[fileURL URLByDeletingLastPathComponent] URLByAppendingPathComponent:fileInfo[@"target"]] URLByStandardizingPath];
+            NSURL* actualDestination = [fileURL URLByResolvingSymlinksInPath];
+            if (![expectedDestination isEqual:actualDestination]) {
+                NSLog(@"Symbolic link mismatch for file: %@ (%@) (expected %@, got %@)", fileURL.path, relativePath, expectedDestination,
+                      actualDestination);
+                return NO;
+            }
+        } else if ([fileInfo[@"type"] isEqualToString:@"directory"]) {
+            NSNumber* isDirectory;
+            if (![fileURL getResourceValue:&isDirectory forKey:NSURLIsDirectoryKey error:nil] || ![isDirectory boolValue]) {
+                NSLog(@"Java runtime not verified as %@ (%@) is not a directory", fileURL.path, relativePath);
+                return NO;
+            }
+        } else {
+            NSLog(@"Java runtime not verified as %@ (%@) has an unknown type", fileURL.path, relativePath);
+            return NO;
+        }
+
+        [verifiedFiles addObject:relativePath];
+    }
+
+    for (NSString* relativePath in files) {
+        if (![verifiedFiles containsObject:relativePath]) {
+            NSLog(@"Java runtime not verified due to missing file %@", relativePath);
+            return NO;
         }
     }
 
