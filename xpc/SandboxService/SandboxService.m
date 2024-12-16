@@ -28,28 +28,45 @@
 
 BOOL shouldRemoveQuarantine(NSURL* url)
 {
+    NSDictionary<NSURLResourceKey, id>* resourceValues = [url resourceValuesForKeys:@[
+        NSURLIsRegularFileKey, NSURLIsApplicationKey, NSURLIsPackageKey, NSURLQuarantinePropertiesKey, NSURLContentTypeKey
+    ]
+                                                                              error:nil];
+    if (resourceValues == nil) {
+        return NO;
+    }
+
     // Avoid unquarantining directories (such as bundles, which can include applications).
-    NSNumber* isRegularFile;
-    if (!([url getResourceValue:&isRegularFile forKey:NSURLIsRegularFileKey error:nil] && [isRegularFile boolValue])) {
+    if (resourceValues[NSURLIsRegularFileKey] == nil || ![resourceValues[NSURLIsRegularFileKey] boolValue]) {
+        return NO;
+    }
+
+    // Pretty sure the regular file check should handle this, but just in case:
+    if (resourceValues[NSURLIsApplicationKey] == nil || [resourceValues[NSURLIsApplicationKey] boolValue]) {
+        return NO;
+    }
+    if (resourceValues[NSURLIsPackageKey] == nil || [resourceValues[NSURLIsPackageKey] boolValue]) {
+        return NO;
+    }
+
+    // Ignore the file if it is not quarantined.
+    if (resourceValues[NSURLQuarantinePropertiesKey] == nil ||
+        resourceValues[NSURLQuarantinePropertiesKey][(__bridge id)kLSQuarantineTypeKey] == nil) {
         return NO;
     }
 
     // If the "Open With" attribute on a file has been changed, that could potentially be dangerous. Only unquarantine a file if this
     // attribute is not set to a non-default value. Note that sandboxed processes can't choose to open a file in an app other than the
-    // default app for that file or an app that declares it can open that file type.
+    // default app for that file, an app that declares it can open that file type, or certain "safe" apps (like TextEdit).
     if (@available(macOS 12.0, *)) {
-        NSString* typeIdentifier;
-        [url getResourceValue:&typeIdentifier forKey:NSURLTypeIdentifierKey error:nil];
-        if (typeIdentifier) {
-            UTType* fileType = [UTType typeWithIdentifier:typeIdentifier];
-            if ([[NSWorkspace sharedWorkspace] URLForApplicationToOpenURL:url] !=
-                [[NSWorkspace sharedWorkspace] URLForApplicationToOpenContentType:fileType]) {
-                return NO;
-            }
+        UTType* fileType = resourceValues[NSURLContentTypeKey];
+        if (fileType == nil || [[NSWorkspace sharedWorkspace] URLForApplicationToOpenURL:url] !=
+                                   [[NSWorkspace sharedWorkspace] URLForApplicationToOpenContentType:fileType]) {
+            return NO;
         }
     }
 
-    NSSet<NSString*>* allowedExtensions = [[NSSet alloc] initWithArray:@[ @"", @"dylib", @"tmp", @"jnilib" ]];
+    NSSet<NSString*>* allowedExtensions = [[NSSet alloc] initWithArray:@[ @"", @"dylib", @"tmp", @"jnilib", @"so" ]];
     return [allowedExtensions containsObject:url.pathExtension];
 }
 
@@ -193,9 +210,9 @@ BOOL shouldRemoveQuarantine(NSURL* url)
 
                  // Recursively remove quarantine from all files in the directory.
                  NSDirectoryEnumerator* enumerator = [[NSFileManager defaultManager] enumeratorAtURL:temporaryDirectory
-                                                   includingPropertiesForKeys:@[ NSURLIsRegularFileKey ]
-                                                                      options:0
-                                                                 errorHandler:nil];
+                                                                          includingPropertiesForKeys:@[ NSURLIsRegularFileKey ]
+                                                                                             options:0
+                                                                                        errorHandler:nil];
                  for (NSURL* fileURL in enumerator) {
                      BOOL removed = [self removeQuarantineForFileAt:fileURL];
                      if (!removed) {
@@ -228,8 +245,7 @@ BOOL shouldRemoveQuarantine(NSURL* url)
     [downloadTask resume];
 }
 
-- (void)applyDownloadQuarantineRecursivelyToJavaInstallAt:(NSString*)path
-                                                withReply:(void (^)(BOOL *))reply
+- (void)applyDownloadQuarantineRecursivelyToJavaInstallAt:(NSString*)path withReply:(void (^)(BOOL*))reply
 {
     BOOL result = YES;
     NSURL* directoryURL = [NSURL fileURLWithPath:path];
@@ -237,10 +253,12 @@ BOOL shouldRemoveQuarantine(NSURL* url)
                                                              includingPropertiesForKeys:@[ NSURLIsRegularFileKey ]
                                                                                 options:0
                                                                            errorHandler:nil];
-    NSDictionary* quarantineProperties = @{ NSURLQuarantinePropertiesKey : @{
-        (__bridge id)kLSQuarantineAgentNameKey : @"Prism Launcher",
-        (__bridge id)kLSQuarantineTypeKey : (__bridge id)kLSQuarantineTypeOtherDownload,
-    } };
+    NSDictionary* quarantineProperties = @{
+        NSURLQuarantinePropertiesKey : @{
+            (__bridge id)kLSQuarantineAgentNameKey : @"Prism Launcher",
+            (__bridge id)kLSQuarantineTypeKey : (__bridge id)kLSQuarantineTypeOtherDownload,
+        }
+    };
     for (NSURL* fileURL in enumerator) {
         NSError* err = nil;
         [fileURL setResourceValue:@{} forKey:NSURLQuarantinePropertiesKey error:&err];
@@ -254,7 +272,7 @@ BOOL shouldRemoveQuarantine(NSURL* url)
     reply(&result);
 }
 
-- (void)retrieveUnsandboxedUserTemporaryDirectoryWithReply:(void (^)(NSString *))reply
+- (void)retrieveUnsandboxedUserTemporaryDirectoryWithReply:(void (^)(NSString*))reply
 {
     reply(NSTemporaryDirectory());
 }
