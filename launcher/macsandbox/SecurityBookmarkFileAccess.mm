@@ -75,9 +75,6 @@ SecurityBookmarkFileAccess::~SecurityBookmarkFileAccess()
     for (NSURL* url : m_activeURLs) {
         [url stopAccessingSecurityScopedResource];
     }
-    [m_bookmarks release];
-    [m_paths release];
-    [m_activeURLs release];
 }
 
 QByteArray SecurityBookmarkFileAccess::pathToSecurityScopedBookmark(const QString& path)

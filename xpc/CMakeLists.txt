@@ -24,3 +24,6 @@ set_target_properties(SandboxService PROPERTIES
         MACOSX_BUNDLE_INFO_PLIST "MacOSXPCBundleInfo.plist.in"
         OUTPUT_NAME "PrismSandboxService"
 )
+target_compile_options(SandboxService PRIVATE
+        -fobjc-arc
+)

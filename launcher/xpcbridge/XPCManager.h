@@ -27,7 +27,7 @@ class XPCManager {
     XPCManagerInternal* m_internal;
 public:
     XPCManager();
-    ~XPCManager();
+    ~XPCManager() = default;
 
     std::pair<bool, std::string> askToRemoveQuarantine(char* path);
     bool removeQuarantineFromMojangJavaDirectory(NSString* path, NSURL* manifestURL);

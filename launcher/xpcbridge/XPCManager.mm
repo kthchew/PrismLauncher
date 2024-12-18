@@ -26,7 +26,6 @@
 
 @interface XPCManagerInternal : NSObject
 @property(retain) NSXPCConnection* m_connectionToService;
-@property(retain) id m_proxy;
 
 - (instancetype)init;
 @end
@@ -157,10 +156,5 @@ QString XPCManager::getUnsandboxedTemporaryDirectory()
 XPCManager::XPCManager()
 {
     m_internal = [[XPCManagerInternal alloc] init];
-}
-
-XPCManager::~XPCManager()
-{
-    [m_internal release];
 }
 #endif

@@ -1352,8 +1352,12 @@ if(APPLE)
         "-framework Foundation"
         "-framework ApplicationServices"
     )
+    target_compile_options(Launcher_logic PRIVATE -fobjc-arc)
+
     if(Launcher_ENABLE_UPDATER)
       target_link_libraries(Launcher_logic ${SPARKLE_FRAMEWORK})
+      # temporary (surely) since this file came before ARC was enabled
+      set_source_files_properties(updater/MacSparkleUpdater.mm PROPERTIES COMPILE_OPTIONS -fno-objc-arc)
     endif()
 
     if(Launcher_ENABLE_SANDBOX)
