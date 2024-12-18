@@ -21,54 +21,23 @@
 #import <CommonCrypto/CommonDigest.h>
 #import <UniformTypeIdentifiers/UniformTypeIdentifiers.h>
 
+#import <mach-o/fat.h>
+#import <mach-o/loader.h>
+
 @interface SandboxService (Private)
+/// Check whether the Mach-O object file data corresponding to the `fileHandle` contains an entry point; that is, if it has a `main`
+/// function that will run when executed. `objectOffset` is the offset in the file where the Mach-O object file data starts for a particular
+/// architecture.
+///
+/// If the data is invalid, there is assumed to be an entry point (i.e. a possibly dangerous file).
+- (BOOL)entrypointExistsForFileHandle:(NSFileHandle*)fileHandle atOffset:(NSUInteger)objectOffset;
+/// Check whether the Mach-O file at the given URL has an entry point (i.e. a `main` function that will run when executed).
+/// If the file is not a Mach-O file, this function returns `YES`.
+- (BOOL)entrypointExistsInExecutableFileAt:(NSURL*)url;
+- (BOOL)shouldRemoveQuarantineOnFileAt:(NSURL*)url;
 - (BOOL)removeQuarantineForFileAt:(NSURL*)fileURL;
 - (BOOL)verifyJavaRuntimeAt:(NSURL*)url againstFileManifest:(NSDictionary*)files;
 @end
-
-BOOL shouldRemoveQuarantine(NSURL* url)
-{
-    NSDictionary<NSURLResourceKey, id>* resourceValues = [url resourceValuesForKeys:@[
-        NSURLIsRegularFileKey, NSURLIsApplicationKey, NSURLIsPackageKey, NSURLQuarantinePropertiesKey, NSURLContentTypeKey
-    ]
-                                                                              error:nil];
-    if (resourceValues == nil) {
-        return NO;
-    }
-
-    // Avoid unquarantining directories (such as bundles, which can include applications).
-    if (resourceValues[NSURLIsRegularFileKey] == nil || ![resourceValues[NSURLIsRegularFileKey] boolValue]) {
-        return NO;
-    }
-
-    // Pretty sure the regular file check should handle this, but just in case:
-    if (resourceValues[NSURLIsApplicationKey] == nil || [resourceValues[NSURLIsApplicationKey] boolValue]) {
-        return NO;
-    }
-    if (resourceValues[NSURLIsPackageKey] == nil || [resourceValues[NSURLIsPackageKey] boolValue]) {
-        return NO;
-    }
-
-    // Ignore the file if it is not quarantined.
-    if (resourceValues[NSURLQuarantinePropertiesKey] == nil ||
-        resourceValues[NSURLQuarantinePropertiesKey][(__bridge id)kLSQuarantineTypeKey] == nil) {
-        return NO;
-    }
-
-    // If the "Open With" attribute on a file has been changed, that could potentially be dangerous. Only unquarantine a file if this
-    // attribute is not set to a non-default value. Note that sandboxed processes can't choose to open a file in an app other than the
-    // default app for that file, an app that declares it can open that file type, or certain "safe" apps (like TextEdit).
-    if (@available(macOS 12.0, *)) {
-        UTType* fileType = resourceValues[NSURLContentTypeKey];
-        if (fileType == nil || [[NSWorkspace sharedWorkspace] URLForApplicationToOpenURL:url] !=
-                                   [[NSWorkspace sharedWorkspace] URLForApplicationToOpenContentType:fileType]) {
-            return NO;
-        }
-    }
-
-    NSSet<NSString*>* allowedExtensions = [[NSSet alloc] initWithArray:@[ @"", @"dylib", @"tmp", @"jnilib", @"so" ]];
-    return [allowedExtensions containsObject:url.pathExtension];
-}
 
 @implementation SandboxService
 - (void)removeQuarantineFromFileAt:(NSString*)path withReply:(void (^)(BOOL*, NSString*))reply
@@ -98,7 +67,7 @@ BOOL shouldRemoveQuarantine(NSURL* url)
         return;
     }
 
-    if (!shouldRemoveQuarantine(unquarantinedCopyURL)) {
+    if (![self shouldRemoveQuarantineOnFileAt:unquarantinedCopyURL]) {
         reply(&result, path);
         [[NSFileManager defaultManager] removeItemAtURL:temporaryDirectory error:nil];
         return;
@@ -391,6 +360,165 @@ BOOL shouldRemoveQuarantine(NSURL* url)
     }
 
     return YES;
+}
+
+- (BOOL)entrypointExistsForFileHandle:(NSFileHandle *)fileHandle atOffset:(NSUInteger)objectOffset
+{
+    if (![fileHandle seekToOffset:objectOffset error:nil]) {
+        return YES;
+    }
+    NSData* headerData = [fileHandle readDataOfLength:sizeof(struct mach_header)];
+    if (!headerData || [headerData length] < sizeof(struct mach_header)) {
+        return YES;
+    }
+    const struct mach_header* header32 = (const struct mach_header*)[headerData bytes];
+
+    uint32_t ncmds = header32->ncmds;
+    NSUInteger cmdOffset;
+    bool endiannessReversed;
+
+    if (header32->magic == MH_MAGIC_64 || header32->magic == MH_CIGAM_64) {
+        cmdOffset = sizeof(struct mach_header_64);
+        endiannessReversed = header32->magic == MH_CIGAM_64;
+    } else if (header32->magic == MH_MAGIC || header32->magic == MH_CIGAM) {
+        cmdOffset = sizeof(struct mach_header);
+        endiannessReversed = header32->magic == MH_CIGAM;
+    } else {
+        // don't know what kind of binary this is, just assume this has an entry point (and thus deny quarantine removal)
+        return YES;
+    }
+
+    if (endiannessReversed) {
+        ncmds = CFSwapInt32(ncmds);
+    }
+
+    for (uint32_t i = 0; i < ncmds; i++) {
+        if (![fileHandle seekToOffset:objectOffset + cmdOffset error:nil]) {
+            return YES;
+        }
+        NSData* cmdData = [fileHandle readDataOfLength:sizeof(struct load_command)];
+        if (!cmdData || [cmdData length] < sizeof(struct load_command)) {
+            return YES;
+        }
+
+        const struct load_command* cmd = (const struct load_command*)[cmdData bytes];
+
+        uint32_t cmdType = endiannessReversed ? CFSwapInt32(cmd->cmd) : cmd->cmd;
+        // found an entrypoint
+        if (cmdType == LC_MAIN || cmdType == LC_UNIXTHREAD) {
+            return YES;
+        }
+
+        uint32_t cmdSize = endiannessReversed ? CFSwapInt32(cmd->cmdsize) : cmd->cmdsize;
+        cmdOffset += cmdSize;
+    }
+
+    return NO;
+}
+
+- (BOOL)entrypointExistsInExecutableFileAt:(NSURL *)url
+{
+    // read and interpret the Mach-O header and file data directly
+    // note: generally there's a command line tool you can use to check this, e.g. `/usr/bin/otool`, but that requires a separate process,
+    // the output on that is not guaranteed to be stable, and it's unknown if it's on the system by default for all supported macOS versions
+    // luckily, there's public API (mach-o/*.h) to help us parse the format and do this ourselves, though it's quite messy
+    NSFileHandle* fileHandle = [NSFileHandle fileHandleForReadingFromURL:url error:nil];
+    if (fileHandle == nil) {
+        return YES;
+    }
+    NSData* fatHeaderData = [fileHandle readDataOfLength:sizeof(struct fat_header)];
+    if (!fatHeaderData || [fatHeaderData length] < sizeof(struct fat_header)) {
+        return YES;
+    }
+
+    const struct fat_header* header = (const struct fat_header*)[fatHeaderData bytes];
+    NSUInteger archOffset = sizeof(struct fat_header);
+
+    size_t archSize;
+    // anything declared in mach-o/fat.h is always stored on disk in big-endian order
+    uint32_t numArch = CFSwapInt32BigToHost(header->nfat_arch);
+
+    if (header->magic == FAT_MAGIC || header->magic == FAT_CIGAM) {
+        archSize = sizeof(struct fat_arch);
+    } else if (header->magic == FAT_MAGIC_64 || header->magic == FAT_CIGAM_64) {
+        archSize = sizeof(struct fat_arch_64);
+    } else if (header->magic == MH_MAGIC || header->magic == MH_CIGAM || header->magic == MH_MAGIC_64 || header->magic == MH_CIGAM_64) {
+        // not a "fat" binary, just check the single architecture that is there
+        return [self entrypointExistsForFileHandle:fileHandle atOffset:0];
+    } else {
+        // no idea what this file is - just say there's an entrypoint to be safe
+        return YES;
+    }
+
+    if (![fileHandle seekToOffset:archOffset error:nil]) {
+        return YES;
+    }
+    NSData* archData = [fileHandle readDataOfLength:archSize * numArch];
+    if (!archData || [archData length] < archSize * numArch) {
+        return YES;
+    }
+    for (int i = 0; i < numArch; i++) {
+        const struct fat_arch* currentArch = (const struct fat_arch*)[archData bytes] + i;
+        uint32_t offset = CFSwapInt32BigToHost(currentArch->offset);
+        if ([self entrypointExistsForFileHandle:fileHandle atOffset:offset]) {
+            return YES;
+        }
+    }
+
+    return NO;
+}
+
+- (BOOL)shouldRemoveQuarantineOnFileAt:(NSURL *)url
+{
+    NSDictionary<NSURLResourceKey, id>* resourceValues = [url resourceValuesForKeys:@[
+        NSURLIsRegularFileKey, NSURLIsApplicationKey, NSURLIsPackageKey, NSURLQuarantinePropertiesKey, NSURLContentTypeKey
+    ]
+                                                                              error:nil];
+    if (resourceValues == nil) {
+        return NO;
+    }
+
+    // Avoid unquarantining directories (such as bundles, which can include applications).
+    if (resourceValues[NSURLIsRegularFileKey] == nil || ![resourceValues[NSURLIsRegularFileKey] boolValue]) {
+        return NO;
+    }
+
+    // Pretty sure the regular file check should handle this, but just in case:
+    if (resourceValues[NSURLIsApplicationKey] == nil || [resourceValues[NSURLIsApplicationKey] boolValue]) {
+        return NO;
+    }
+    if (resourceValues[NSURLIsPackageKey] == nil || [resourceValues[NSURLIsPackageKey] boolValue]) {
+        return NO;
+    }
+
+    // Ignore the file if it is not quarantined.
+    if (resourceValues[NSURLQuarantinePropertiesKey] == nil ||
+        resourceValues[NSURLQuarantinePropertiesKey][(__bridge id)kLSQuarantineTypeKey] == nil) {
+        return NO;
+    }
+
+    // Check if the Mach-O binary file has a `main` method (would it execute something if it were run itself?).
+    // It might be unsafe in that case, and is uncommon for dynamic libraries.
+    // (if this isn't a Mach-O file, this returns YES, and thus we don't remove quarantine - there's no valid reason to remove quarantine
+    // from a non-Mach-O file)
+    // NOTE: this check might be too strict - should this be kept or relaxed? It seems to be ok for the vanilla game at least
+    if ([self entrypointExistsInExecutableFileAt:url]) {
+        return NO;
+    }
+
+    // If the "Open With" attribute on a file has been changed, that could potentially be dangerous. Only unquarantine a file if this
+    // attribute is not set to a non-default value. Note that sandboxed processes can't choose to open a file in an app other than the
+    // default app for that file, an app that declares it can open that file type, or certain "safe" apps (like TextEdit).
+    if (@available(macOS 12.0, *)) {
+        UTType* fileType = resourceValues[NSURLContentTypeKey];
+        if (fileType == nil || [[NSWorkspace sharedWorkspace] URLForApplicationToOpenURL:url] !=
+                                   [[NSWorkspace sharedWorkspace] URLForApplicationToOpenContentType:fileType]) {
+            return NO;
+        }
+    }
+
+    NSSet<NSString*>* allowedExtensions = [[NSSet alloc] initWithArray:@[ @"", @"dylib", @"tmp", @"jnilib", @"so" ]];
+    return [allowedExtensions containsObject:url.pathExtension];
 }
 
 @end
