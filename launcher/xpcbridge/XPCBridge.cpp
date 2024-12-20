@@ -21,18 +21,11 @@
 #include "Application.h"
 #include "XPCBridge.h"
 #include "XPCManager.h"
-#include "ui/dialogs/CustomMessageBox.h"
 
-#include <stdio.h>
-#include <sys/syslimits.h>
-#include <sys/un.h>
+#include <sys/socket.h>
 #include <unistd.h>
 
-#include <QLocalSocket>
-#include <QTemporaryDir>
-#include <QThread>
-#include <QThreadPool>
-#include <QtCore/QEventLoop>
+#include <QSocketNotifier>
 
 XPCBridge::XPCBridge(QObject* parent) : QObject(parent)
 {
