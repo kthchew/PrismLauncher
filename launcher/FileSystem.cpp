@@ -659,7 +659,7 @@ bool moveByCopy(const QString& source, const QString& dest)
     if (!deletePath(source)) {  // remove original
         qDebug() << "Deletion of" << source << "failed!";
         return false;
-    };
+    }
     return true;
 }
 

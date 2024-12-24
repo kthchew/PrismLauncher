@@ -151,13 +151,13 @@ QStringList InstanceList::getLinkedInstancesById(const QString& id) const
 
 int InstanceList::rowCount(const QModelIndex& parent) const
 {
-    Q_UNUSED(parent);
+    Q_UNUSED(parent)
     return m_instances.count();
 }
 
 QModelIndex InstanceList::index(int row, int column, const QModelIndex& parent) const
 {
-    Q_UNUSED(parent);
+    Q_UNUSED(parent)
     if (row < 0 || row >= m_instances.size())
         return QModelIndex();
     return createIndex(row, column, (void*)m_instances.at(row).get());
@@ -827,7 +827,7 @@ void InstanceList::loadGroupList()
 
 void InstanceList::instanceDirContentsChanged(const QString& path)
 {
-    Q_UNUSED(path);
+    Q_UNUSED(path)
     emit instancesChanged();
 }
 

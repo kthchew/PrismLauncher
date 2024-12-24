@@ -70,4 +70,4 @@ inline auto modSideToString(ModSide side) -> QString
     return Packwiz::V1::sideToString(side);
 }
 
-};  // namespace Metadata
+} // namespace Metadata

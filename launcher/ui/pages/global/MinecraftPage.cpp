@@ -76,7 +76,7 @@ void MinecraftPage::updateCheckboxStuff()
 
 void MinecraftPage::on_maximizedCheckBox_clicked(bool checked)
 {
-    Q_UNUSED(checked);
+    Q_UNUSED(checked)
     updateCheckboxStuff();
 }
 

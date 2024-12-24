@@ -379,7 +379,7 @@ std::optional<QStringList> extractDir(QString fileCompressed, QString dir)
             return QStringList();
         }
         qWarning() << "Could not open archive for unpacking:" << fileCompressed << "Error:" << zip.getZipError();
-        ;
+
         return std::nullopt;
     }
     return extractSubDir(&zip, "", dir);
@@ -396,7 +396,7 @@ std::optional<QStringList> extractDir(QString fileCompressed, QString subdir, QS
             return QStringList();
         }
         qWarning() << "Could not open archive for unpacking:" << fileCompressed << "Error:" << zip.getZipError();
-        ;
+
         return std::nullopt;
     }
     return extractSubDir(&zip, subdir, dir);

@@ -87,7 +87,6 @@ QVariant TexturePackFolderModel::data(const QModelIndex& index, int role) const
                            tr("\nWarning: This resource is symbolically linked from elsewhere. Editing it will also change the original."
                               "\nCanonical Path: %1")
                                .arg(at(row).fileinfo().canonicalFilePath());
-                    ;
                 }
                 if (at(row).isMoreThanOneHardLink()) {
                     return m_resources[row]->internal_id() +

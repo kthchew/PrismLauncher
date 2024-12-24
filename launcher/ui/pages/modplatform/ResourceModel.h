@@ -60,7 +60,7 @@ class ResourceModel : public QAbstractListModel {
     /** Whether the version is opted out or not. Currently only makes sense in CF. */
     virtual bool optedOut(const ModPlatform::IndexedVersion& ver) const
     {
-        Q_UNUSED(ver);
+        Q_UNUSED(ver)
         return false;
     };
 

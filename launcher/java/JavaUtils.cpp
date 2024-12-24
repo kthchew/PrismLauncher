@@ -169,7 +169,7 @@ QStringList addJavasFromEnv(QList<QString> javas)
 #endif
     for (QString i : javaPaths) {
         javas.append(i);
-    };
+    }
     return javas;
 }
 

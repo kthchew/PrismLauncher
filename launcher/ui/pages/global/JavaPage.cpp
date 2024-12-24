@@ -181,7 +181,7 @@ void JavaPage::on_javaBrowseBtn_clicked()
 
     QString cooked_path = FS::NormalizePath(raw_path);
     QFileInfo javaInfo(cooked_path);
-    ;
+
     if (!javaInfo.exists() || !javaInfo.isExecutable()) {
         return;
     }
