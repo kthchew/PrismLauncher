@@ -313,12 +313,33 @@ Application::Application(int& argc, char** argv) : QApplication(argc, argv)
     QString dataDirEnv;
     QString dirParam = parser.value("dir");
     if (!dirParam.isEmpty()) {
+#if defined(Q_OS_MACOS) && defined(SANDBOX_ENABLED)
+        showFatalErrorMessage(
+            QString("The --dir option is not supported on the sandboxed version of %1.").arg(BuildConfig.LAUNCHER_DISPLAYNAME),
+            QString("The --dir option is not supported on the sandboxed version of %1.\n"
+                    "\n"
+                    "You can still change the location of data such as instances in the launcher's settings without --dir. "
+                    "If you need to change the application data directory, please use the unsandboxed version. ")
+                .arg(BuildConfig.LAUNCHER_DISPLAYNAME));
+        return;
+#endif
         // the dir param. it makes multimc data path point to whatever the user specified
         // on command line
         adjustedBy = "Command line";
         dataPath = dirParam;
     } else if (dataDirEnv = QProcessEnvironment::systemEnvironment().value(QString("%1_DATA_DIR").arg(BuildConfig.LAUNCHER_NAME.toUpper()));
                !dataDirEnv.isEmpty()) {
+#if defined(Q_OS_MACOS) && defined(SANDBOX_ENABLED)
+        showFatalErrorMessage(
+            QString("The %1_DATA_DIR environment variable is not supported on the sandboxed version of %2.")
+                .arg(BuildConfig.LAUNCHER_NAME.toUpper(), BuildConfig.LAUNCHER_DISPLAYNAME),
+            QString("The %1_DATA_DIR environment variable is not supported on the sandboxed version of %2.\n"
+                    "\n"
+                    "You can still change the location of data such as instances in the launcher's settings without %1_DATA_DIR. "
+                    "If you need to change the application data directory, please use the unsandboxed version. ")
+                .arg(BuildConfig.LAUNCHER_NAME.toUpper(), BuildConfig.LAUNCHER_DISPLAYNAME));
+        return;
+#endif
         adjustedBy = "System environment";
         dataPath = dataDirEnv;
     } else {
