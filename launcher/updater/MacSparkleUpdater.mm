@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 /*
  *  Prism Launcher - Minecraft Launcher
- *  Copyright (C) 2022 Kenneth Chew <kenneth.c0@protonmail.com>
+ *  Copyright (C) 2022 Kenneth Chew <79120643+kthchew@users.noreply.github.com>
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -18,9 +18,6 @@
 
 #include "MacSparkleUpdater.h"
 
-#include "Application.h"
-
-#include <Cocoa/Cocoa.h>
 #include <Sparkle/Sparkle.h>
 
 @interface UpdaterObserver : NSObject
@@ -36,7 +33,8 @@
 
 @implementation UpdaterObserver
 
-- (id)initWithUpdater:(SPUUpdater*)updater {
+- (id)initWithUpdater:(SPUUpdater*)updater
+{
     self = [super init];
     _updater = updater;
     [self addObserver:self forKeyPath:@"updater.canCheckForUpdates" options:NSKeyValueObservingOptionNew context:nil];
@@ -47,7 +45,8 @@
 - (void)observeValueForKeyPath:(NSString*)keyPath
                       ofObject:(id)object
                         change:(NSDictionary<NSKeyValueChangeKey, id>*)change
-                       context:(void*)context {
+                       context:(void*)context
+{
     if ([keyPath isEqualToString:@"updater.canCheckForUpdates"]) {
         bool canCheck = [change[NSKeyValueChangeNewKey] boolValue];
         self.callback(canCheck);
@@ -64,7 +63,8 @@
 
 @implementation UpdaterDelegate
 
-- (NSSet<NSString*>*)allowedChannelsForUpdater:(SPUUpdater*)updater {
+- (NSSet<NSString*>*)allowedChannelsForUpdater:(SPUUpdater*)updater
+{
     return _allowedChannels;
 }
 
@@ -75,15 +75,11 @@ class MacSparkleUpdater::Private {
     SPUStandardUpdaterController* updaterController;
     UpdaterObserver* updaterObserver;
     UpdaterDelegate* updaterDelegate;
-    NSAutoreleasePool* autoReleasePool;
 };
 
-MacSparkleUpdater::MacSparkleUpdater() {
+MacSparkleUpdater::MacSparkleUpdater()
+{
     priv = new MacSparkleUpdater::Private();
-
-    // Enable Cocoa's memory management.
-    NSApplicationLoad();
-    priv->autoReleasePool = [[NSAutoreleasePool alloc] init];
 
     // Delegate is used for setting/getting allowed update channels.
     priv->updaterDelegate = [[UpdaterDelegate alloc] init];
@@ -100,29 +96,29 @@ MacSparkleUpdater::MacSparkleUpdater() {
     };
 }
 
-MacSparkleUpdater::~MacSparkleUpdater() {
+MacSparkleUpdater::~MacSparkleUpdater()
+{
     [priv->updaterObserver removeObserver:priv->updaterObserver forKeyPath:@"updater.canCheckForUpdates"];
-
-    [priv->updaterController release];
-    [priv->updaterObserver release];
-    [priv->updaterDelegate release];
-    [priv->autoReleasePool release];
     delete priv;
 }
 
-void MacSparkleUpdater::checkForUpdates() {
+void MacSparkleUpdater::checkForUpdates()
+{
     [priv->updaterController checkForUpdates:nil];
 }
 
-bool MacSparkleUpdater::getAutomaticallyChecksForUpdates() {
+bool MacSparkleUpdater::getAutomaticallyChecksForUpdates()
+{
     return priv->updaterController.updater.automaticallyChecksForUpdates;
 }
 
-double MacSparkleUpdater::getUpdateCheckInterval() {
+double MacSparkleUpdater::getUpdateCheckInterval()
+{
     return priv->updaterController.updater.updateCheckInterval;
 }
 
-QSet<QString> MacSparkleUpdater::getAllowedChannels() {
+QSet<QString> MacSparkleUpdater::getAllowedChannels()
+{
     // Convert NSSet<NSString> -> QSet<QString>
     __block QSet<QString> channels;
     [priv->updaterDelegate.allowedChannels enumerateObjectsUsingBlock:^(NSString* channel, BOOL* stop) {
@@ -131,23 +127,28 @@ QSet<QString> MacSparkleUpdater::getAllowedChannels() {
     return channels;
 }
 
-bool MacSparkleUpdater::getBetaAllowed() {
+bool MacSparkleUpdater::getBetaAllowed()
+{
     return getAllowedChannels().contains("beta");
 }
 
-void MacSparkleUpdater::setAutomaticallyChecksForUpdates(bool check) {
+void MacSparkleUpdater::setAutomaticallyChecksForUpdates(bool check)
+{
     priv->updaterController.updater.automaticallyChecksForUpdates = check ? YES : NO;  // make clang-tidy happy
 }
 
-void MacSparkleUpdater::setUpdateCheckInterval(double seconds) {
+void MacSparkleUpdater::setUpdateCheckInterval(double seconds)
+{
     priv->updaterController.updater.updateCheckInterval = seconds;
 }
 
-void MacSparkleUpdater::clearAllowedChannels() {
+void MacSparkleUpdater::clearAllowedChannels()
+{
     priv->updaterDelegate.allowedChannels = [NSSet set];
 }
 
-void MacSparkleUpdater::setAllowedChannel(const QString& channel) {
+void MacSparkleUpdater::setAllowedChannel(const QString& channel)
+{
     if (channel.isEmpty()) {
         clearAllowedChannels();
         return;
@@ -157,7 +158,8 @@ void MacSparkleUpdater::setAllowedChannel(const QString& channel) {
     priv->updaterDelegate.allowedChannels = nsChannels;
 }
 
-void MacSparkleUpdater::setAllowedChannels(const QSet<QString>& channels) {
+void MacSparkleUpdater::setAllowedChannels(const QSet<QString>& channels)
+{
     if (channels.isEmpty()) {
         clearAllowedChannels();
         return;
@@ -174,7 +176,8 @@ void MacSparkleUpdater::setAllowedChannels(const QSet<QString>& channels) {
     priv->updaterDelegate.allowedChannels = nsChannels;
 }
 
-void MacSparkleUpdater::setBetaAllowed(bool allowed) {
+void MacSparkleUpdater::setBetaAllowed(bool allowed)
+{
     if (allowed) {
         setAllowedChannel("beta");
     } else {

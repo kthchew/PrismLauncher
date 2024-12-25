@@ -1328,6 +1328,8 @@ if(APPLE)
         "-framework Foundation"
         "-framework ApplicationServices"
     )
+    target_compile_options(Launcher_logic PRIVATE -fobjc-arc)
+
     if(Launcher_ENABLE_UPDATER)
       target_link_libraries(Launcher_logic ${SPARKLE_FRAMEWORK})
     endif()
