@@ -22,6 +22,7 @@
 #include "XPCBridge.h"
 #include "XPCManager.h"
 
+#include <sys/ioctl.h>
 #include <sys/socket.h>
 #include <unistd.h>
 
@@ -36,6 +37,11 @@ XPCBridge::XPCBridge(QObject* parent) : QObject(parent)
     }
     m_launcherSocket = sockets[0];
     m_gameSocket = sockets[1];
+
+    if (ioctl(m_launcherSocket, FIOCLEX, 1) == -1) {
+        qWarning() << "Failed to set close-on-exec flag on launcher socket for XPC bridge - launcher socket may leak";
+        return;
+    }
 
     m_launcherNotifier.reset(new QSocketNotifier(m_launcherSocket, QSocketNotifier::Read, this));
     connect(m_launcherNotifier.get(), &QSocketNotifier::activated, this, &XPCBridge::onReadyRead);
