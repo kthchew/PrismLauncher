@@ -23,6 +23,7 @@
 
 #import <mach-o/fat.h>
 #import <mach-o/loader.h>
+#import <sys/xattr.h>
 
 @interface SandboxService (Private)
 /// Check whether the Mach-O object file data corresponding to the `fileHandle` contains an entry point; that is, if it has a `main`
@@ -260,17 +261,15 @@
     }
     // Apple says to do the above, but it instead puts some kind of "quarantine removed" flag on some systems rather than just removing it.
     // There's a macOS bug (?) that causes Gatekeeper to still deny a dynamic library with such an attribute from loading. (FB15970881)
-    // Using xattr to remove the quarantine flag works around this issue, though this isn't ideal.
+    // Removing the xattr directly works around this issue, though this isn't ideal since `com.apple.quarantine` is not technically API
     NSDictionary<NSURLResourceKey, id>* quarantineAfter = [fileURL resourceValuesForKeys:@[ NSURLQuarantinePropertiesKey ] error:nil];
     if (quarantineAfter[NSURLQuarantinePropertiesKey] != nil) {
-        NSTask* task = [[NSTask alloc] init];
-        [task setLaunchPath:@"/usr/bin/xattr"];
-        [task setArguments:@[ @"-sd", @"com.apple.quarantine", fileURL.path ]];
-        [task launch];
-        [task waitUntilExit];
-        if ([task terminationStatus] != 0) {
-            NSLog(@"Couldn't remove quarantine on %@ using xattr", fileURL.path);
-            return NO;
+        int removalResult = removexattr([fileURL fileSystemRepresentation], "com.apple.quarantine", XATTR_NOFOLLOW);
+        if (removalResult != 0) {
+            NSLog(@"Couldn't remove com.apple.quarantine on %@ directly", fileURL.path);
+            // don't return here
+            // failure here but not above probably means Apple changed how quarantine is stored, i.e. not com.apple.quarantine
+            // hopefully by then (if that ever happens) the need for this workaround won't exist anymore anyway
         }
     }
 
