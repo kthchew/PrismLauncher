@@ -58,7 +58,7 @@
            <rect>
             <x>0</x>
             <y>0</y>
-            <width>549</width>
+            <width>559</width>
             <height>722</height>
            </rect>
           </property>
@@ -113,7 +113,14 @@
              </property>
              <layout class="QGridLayout" name="foldersBoxLayout">
               <item row="4" column="1" colspan="2">
-               <widget class="QLineEdit" name="javaDirTextBox"/>
+               <widget class="QLineEdit" name="javaDirTextBox">
+                <property name="sizePolicy">
+                 <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+                  <horstretch>1</horstretch>
+                  <verstretch>0</verstretch>
+                 </sizepolicy>
+                </property>
+               </widget>
               </item>
               <item row="4" column="0">
                <widget class="QLabel" name="labelJavaDir">
@@ -285,7 +292,14 @@
                </widget>
               </item>
               <item row="0" column="1" colspan="2">
-               <widget class="QLineEdit" name="instDirTextBox"/>
+               <widget class="QLineEdit" name="instDirTextBox">
+                <property name="sizePolicy">
+                 <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+                  <horstretch>1</horstretch>
+                  <verstretch>0</verstretch>
+                 </sizepolicy>
+                </property>
+               </widget>
               </item>
               <item row="7" column="1" colspan="4">
                <layout class="QHBoxLayout" name="downloadModsCheckLayout">
@@ -363,10 +377,24 @@
                </widget>
               </item>
               <item row="3" column="1" colspan="2">
-               <widget class="QLineEdit" name="iconsDirTextBox"/>
+               <widget class="QLineEdit" name="iconsDirTextBox">
+                <property name="sizePolicy">
+                 <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+                  <horstretch>1</horstretch>
+                  <verstretch>0</verstretch>
+                 </sizepolicy>
+                </property>
+               </widget>
               </item>
               <item row="5" column="1" colspan="2">
-               <widget class="QLineEdit" name="skinsDirTextBox"/>
+               <widget class="QLineEdit" name="skinsDirTextBox">
+                <property name="sizePolicy">
+                 <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+                  <horstretch>1</horstretch>
+                  <verstretch>0</verstretch>
+                 </sizepolicy>
+                </property>
+               </widget>
               </item>
               <item row="3" column="3">
                <widget class="QPushButton" name="iconsDirResetBtn">
@@ -385,7 +413,14 @@
                </widget>
               </item>
               <item row="2" column="1" colspan="2">
-               <widget class="QLineEdit" name="modsDirTextBox"/>
+               <widget class="QLineEdit" name="modsDirTextBox">
+                <property name="sizePolicy">
+                 <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+                  <horstretch>1</horstretch>
+                  <verstretch>0</verstretch>
+                 </sizepolicy>
+                </property>
+               </widget>
               </item>
               <item row="6" column="4">
                <widget class="QPushButton" name="downloadsDirBrowseBtn">
@@ -430,7 +465,14 @@
                </widget>
               </item>
               <item row="6" column="1" colspan="2">
-               <widget class="QLineEdit" name="downloadsDirTextBox"/>
+               <widget class="QLineEdit" name="downloadsDirTextBox">
+                <property name="sizePolicy">
+                 <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+                  <horstretch>1</horstretch>
+                  <verstretch>0</verstretch>
+                 </sizepolicy>
+                </property>
+               </widget>
               </item>
              </layout>
             </widget>
