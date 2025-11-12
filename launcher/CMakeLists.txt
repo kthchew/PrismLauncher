@@ -1396,6 +1396,8 @@ if(APPLE)
 endif()
 
 if(Launcher_ENABLE_SANDBOX)
+    add_dependencies(Launcher_logic SandboxService)
+    target_include_directories(Launcher_logic PRIVATE "${CMAKE_BINARY_DIR}/xpc/include")
     add_compile_definitions(SANDBOX_ENABLED)
 endif()
 

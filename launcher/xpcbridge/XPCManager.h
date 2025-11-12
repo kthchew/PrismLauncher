@@ -30,8 +30,8 @@ public:
     ~XPCManager() = default;
 
     std::pair<bool, std::string> askToRemoveQuarantine(char* path);
-    bool removeQuarantineFromMojangJavaDirectory(NSString* path, NSURL* manifestURL);
-    bool applyDownloadQuarantineToDirectory(NSString* path);
+    bool removeQuarantineFromMojangJavaDirectory(NSURL* url, NSURL* manifestURL);
+    bool applyDownloadQuarantineToDirectory(NSURL* url);
     QString getUnsandboxedTemporaryDirectory();
 };
 

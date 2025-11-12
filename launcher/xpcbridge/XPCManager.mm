@@ -21,7 +21,7 @@
 #include <Foundation/Foundation.h>
 #include <xpc/xpc.h>
 
-#include "../../xpc/SandboxService/SandboxServiceProtocol.h"
+#include "SandboxProtocol.h"
 #include "XPCManager.h"
 
 @interface XPCManagerInternal : NSObject
@@ -56,35 +56,38 @@ std::pair<bool, std::string> XPCManager::askToRemoveQuarantine(char* path)
     dispatch_time_t waitTime = dispatch_time(DISPATCH_TIME_NOW, (int64_t)(NSEC_PER_SEC * 5));
 
     NSString* pathStr = [NSString stringWithUTF8String:path];
+    NSURL* targetURL = [NSURL fileURLWithPath:pathStr];
     NSLog(@"Asking to remove quarantine from file at path: %@", pathStr);
     id proxy = [[m_internal m_connectionToService] remoteObjectProxyWithErrorHandler:^(NSError* _Nonnull error) {
       NSLog(@"Error occurred while contacting XPC service: %@", error);
       result = std::make_pair(false, std::string(path));
       dispatch_group_leave(syncGroup);
     }];
-    [proxy removeQuarantineFromFileAt:pathStr
-                            withReply:^(BOOL* ok, NSString* url) {
-                              NSLog(@"Received response from XPC service: %d, %@", *ok, url);
-                              result = std::make_pair(*ok, std::string([url UTF8String]));
-                              dispatch_group_leave(syncGroup);
-                            }];
+    [proxy removeQuarantineFromLibraryAt:targetURL
+                                    with:^(BOOL ok, NSURL* url) {
+                                      NSLog(@"Received response from XPC service: %d, %@", ok, url);
+                                      result = ok ? std::make_pair(ok, std::string([url absoluteString].UTF8String)) : std::make_pair(ok, "");
+                                      dispatch_group_leave(syncGroup);
+                                    }];
 
     // LWJGL 2 may load openal.dylib, and for... reasons... that load isn't intercepted, so just hardcode that case here preemptively
     if ([pathStr hasSuffix:@"liblwjgl.dylib"]) {
         NSLog(@"Asking to remove quarantine from file at path (LWJGL 2 workaround): %@", pathStr);
         dispatch_group_enter(syncGroup);
-        [proxy removeQuarantineFromFileAt:[pathStr stringByReplacingOccurrencesOfString:@"liblwjgl.dylib" withString:@"openal.dylib"]
-                                withReply:^(BOOL* ok, NSString* url) {
-                                  NSLog(@"Received response from XPC service: %d, %@", *ok, url);
-                                  dispatch_group_leave(syncGroup);
-                                }];
+        NSString* openalPath = [pathStr stringByReplacingOccurrencesOfString:@"liblwjgl.dylib" withString:@"openal.dylib"];
+        NSURL* openalURL = [NSURL fileURLWithPath:openalPath];
+        [proxy removeQuarantineFromLibraryAt:openalURL
+                                        with:^(BOOL ok, NSURL* url) {
+                                          NSLog(@"Received response from XPC service: %d, %@", ok, url);
+                                          dispatch_group_leave(syncGroup);
+                                        }];
     }
 
     dispatch_group_wait(syncGroup, waitTime);
     return result;
 }
 
-bool XPCManager::removeQuarantineFromMojangJavaDirectory(NSString* path, NSURL* manifestURL)
+bool XPCManager::removeQuarantineFromMojangJavaDirectory(NSURL* url, NSURL* manifestURL)
 {
     __block bool result = false;
     dispatch_group_t syncGroup = dispatch_group_create();
@@ -96,19 +99,20 @@ bool XPCManager::removeQuarantineFromMojangJavaDirectory(NSString* path, NSURL* 
       result = false;
       dispatch_group_leave(syncGroup);
     }];
-    [proxy removeQuarantineRecursivelyFromJavaInstallAt:path
+
+    [proxy removeQuarantineFromJavaInstallAt:url
                                downloadedFromManifestAt:manifestURL
-                                              withReply:^(BOOL* ok) {
-                                                NSLog(@"Received response from XPC service: %d", *ok);
-                                                result = *ok;
-                                                dispatch_group_leave(syncGroup);
-                                              }];
+                                                   with:^(BOOL ok) {
+                                                     NSLog(@"Received response from XPC service: %d", ok);
+                                                     result = ok;
+                                                     dispatch_group_leave(syncGroup);
+                                                   }];
 
     dispatch_group_wait(syncGroup, waitTime);
     return result;
 }
 
-bool XPCManager::applyDownloadQuarantineToDirectory(NSString* path)
+bool XPCManager::applyDownloadQuarantineToDirectory(NSURL* url)
 {
     __block bool result = false;
     dispatch_group_t syncGroup = dispatch_group_create();
@@ -120,12 +124,12 @@ bool XPCManager::applyDownloadQuarantineToDirectory(NSString* path)
       result = false;
       dispatch_group_leave(syncGroup);
     }];
-    [proxy applyDownloadQuarantineRecursivelyToJavaInstallAt:path
-                                                   withReply:^(BOOL* ok) {
-                                                     NSLog(@"Received response from XPC service: %d", *ok);
-                                                     result = *ok;
-                                                     dispatch_group_leave(syncGroup);
-                                                   }];
+    [proxy applyQuarantineToJavaInstallAt:url
+                                     with:^(BOOL ok) {
+                                       NSLog(@"Received response from XPC service: %d", ok);
+                                       result = ok;
+                                       dispatch_group_leave(syncGroup);
+                                     }];
 
     dispatch_group_wait(syncGroup, waitTime);
     return result;
@@ -144,8 +148,8 @@ QString XPCManager::getUnsandboxedTemporaryDirectory()
       result = "";
       dispatch_group_leave(syncGroup);
     }];
-    [proxy retrieveUnsandboxedUserTemporaryDirectoryWithReply:^(NSString* path) {
-      result = QString::fromNSString(path);
+    [proxy getUnsandboxedUserTemporaryDirectoryWith:^(NSURL* url) {
+      result = QString::fromNSString([url path]);
       dispatch_group_leave(syncGroup);
     }];
 
